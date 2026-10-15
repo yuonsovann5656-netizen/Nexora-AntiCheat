@@ -1,0 +1,28 @@
+# ==========================================================
+#        NEXORA ANTICHEAT & PANEL - RENDER DEPLOYMENT BLUEPRINT
+# ==========================================================
+# Deployment Target: Render.com
+# Region: Singapore (singapore)
+# Plan: Free Tier (plan: free)
+# Database: Supabase PostgreSQL (via DATABASE_URL env var)
+# ==========================================================
+
+services:
+  - type: web
+    name: nexora-panel
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: panel
+    buildCommand: npm run render:build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Enter your Supabase PostgreSQL connection string in Render Dashboard -> Environment:
+      # e.g., postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+      - key: DATABASE_URL
+        sync: false

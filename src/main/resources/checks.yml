@@ -1,0 +1,244 @@
+# ==========================================================
+#              NEXORA ANTICHEAT - CHECKS CONFIG
+# ==========================================================
+
+movement:
+  speed:
+    enabled: true
+    max-vl: 10
+    vl-decay: 1.0
+    setback: true
+    punishment: "KICK"
+    base-speed: 0.36
+    ice-multiplier: 1.6
+    # Burst multiplier on the tick the player first leaves the ground (jump launch)
+    jump-boost-factor: 1.50
+    # Multiplier for subsequent air ticks while airborne
+    air-multiplier: 1.18
+    # Extra tolerance multiplier for Bedrock clients
+    bedrock-multiplier: 1.20
+
+
+  fly:
+    enabled: true
+    max-vl: 10
+    vl-decay: 1.0
+    setback: true
+    punishment: "KICK"
+    max-hover-ticks: 4
+    gravity-tolerance: 0.035
+
+  nofall:
+    enabled: true
+    max-vl: 8
+    vl-decay: 1.0
+    setback: true
+    punishment: "WARN"
+    min-air-distance: 0.65
+
+  jesus:
+    enabled: true
+    max-vl: 8
+    vl-decay: 1.0
+    setback: true
+    punishment: "SETBACK"
+    max-liquid-ticks: 3
+
+  step:
+    enabled: true
+    max-vl: 6
+    vl-decay: 1.0
+    setback: true
+    punishment: "SETBACK"
+    max-step-height: 0.62
+
+  phase:
+    enabled: true
+    max-vl: 5
+    vl-decay: 1.0
+    setback: true
+    punishment: "KICK"
+    tolerance: 0.001
+
+  timer:
+    enabled: true
+    max-vl: 15
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+    max-packets-per-second: 24
+    sample-size: 20
+
+  invalidmovement:
+    enabled: true
+    max-vl: 5
+    vl-decay: 1.0
+    setback: true
+    punishment: "KICK"
+    max-pitch: 90.0
+
+combat:
+  killaura:
+    enabled: true
+    max-vl: 10
+    vl-decay: 0.5
+    setback: false
+    punishment: "BAN"
+    max-yaw-speed: 120.0
+    multi-target-window-ms: 100
+
+  reach:
+    enabled: true
+    max-vl: 8
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+    # Standard melee reach (blocks)
+    max-reach: 3.15
+    creative-reach: 5.2
+    # Extended reach window when player is holding/using a Trident (riptide swap exploit)
+    trident-extended-reach: 6.2
+    # Milliseconds after equipping a Trident where extended reach applies
+    trident-window-ms: 800
+    # Extra reach tolerance for Bedrock clients (blocks)
+    bedrock-tolerance: 0.50
+
+
+  autoclicker:
+    enabled: true
+    max-vl: 12
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+    max-cps: 20.0
+    min-variance: 4.5
+
+  velocity:
+    enabled: true
+    max-vl: 10
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+    horizontal-threshold: 0.85
+    vertical-threshold: 0.85
+
+  hitbox:
+    enabled: true
+    max-vl: 8
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+    expansion-threshold: 0.25
+
+world:
+  fastbreak:
+    enabled: true
+    max-vl: 8
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+    break-tolerance: 0.85
+
+  nuker:
+    enabled: true
+    max-vl: 6
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+    max-blocks-per-tick: 2
+
+  scaffold:
+    enabled: true
+    max-vl: 10
+    vl-decay: 1.0
+    setback: true
+    punishment: "KICK"
+    max-angle: 75.0
+
+  fastplace:
+    enabled: true
+    max-vl: 10
+    vl-decay: 1.0
+    setback: false
+    punishment: "WARN"
+    min-delay-ms: 80
+
+  tower:
+    enabled: true
+    max-vl: 8
+    vl-decay: 1.0
+    setback: true
+    punishment: "SETBACK"
+    max-tower-speed: 0.42
+
+  ghosthand:
+    enabled: true
+    max-vl: 6
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+
+  xray:
+    enabled: true
+    max-vl: 10
+    vl-decay: 1.0
+    setback: false
+    punishment: "BLOCK"
+    block-ore: true
+    replace-with-stone: true
+    min-stone-between-ores: 12
+    max-hidden-ore-streak: 3
+
+  antidupe:
+    enabled: true
+    max-vl: 8
+    vl-decay: 0.5
+    setback: false
+    punishment: "BAN"
+    # Time window in milliseconds for rapid-pickup and crafting burst detection
+    window-ms: 1000
+    # Maximum item pickup events allowed within the window
+    max-pickups-per-window: 20
+    # Maximum legitimate stack gain per single pickup (normally ≤ 64)
+    max-single-stack-gain: 64
+
+player:
+  badpackets:
+    enabled: true
+    max-vl: 6
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+
+  inventory:
+    enabled: true
+    max-vl: 8
+    vl-decay: 1.0
+    setback: false
+    punishment: "WARN"
+    max-sprint-clicks: 2
+
+  fasteat:
+    enabled: true
+    max-vl: 6
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+    min-eat-ticks: 28
+
+  exploit:
+    enabled: true
+    max-vl: 3
+    vl-decay: 0.5
+    setback: false
+    punishment: "BAN"
+    max-book-pages: 50
+    max-sign-length: 120
+
+  clientbrand:
+    enabled: true
+    max-vl: 1
+    vl-decay: 1.0
+    setback: false
+    punishment: "KICK"
+

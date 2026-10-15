@@ -1,0 +1,27 @@
+# ==========================================================
+#        NEXORA PANEL - RENDER DEPLOYMENT BLUEPRINT
+# ==========================================================
+# Deployment Target: Render.com
+# Region: Singapore (ap-southeast-1)
+# Plan: Free Tier
+# Database: Supabase PostgreSQL (via DATABASE_URL env var)
+# ==========================================================
+
+services:
+  - type: web
+    name: nexora-panel
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm run render:build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Enter your Supabase connection string in Render Dashboard -> Environment:
+      # e.g., postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+      - key: DATABASE_URL
+        sync: false

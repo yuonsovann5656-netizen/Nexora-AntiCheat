@@ -1,0 +1,58 @@
+name: NexoraAntiCheat
+version: '1.0.0'
+main: com.nexora.anticheat.NexoraPlugin
+api-version: '26.2'
+description: Enterprise-grade, lag-compensated anticheat plugin for modern Paper servers.
+authors:
+  - Antigravity
+  - Nexora Security Team
+website: https://github.com/nexora/anticheat
+
+permissions:
+  nexora.admin:
+    description: Full administrative access to Nexora AntiCheat
+    default: op
+    children:
+      nexora.alerts: true
+      nexora.command.help: true
+      nexora.command.reload: true
+      nexora.command.info: true
+      nexora.command.history: true
+      nexora.command.reset: true
+      nexora.command.punish: true
+      nexora.command.exempt: true
+      nexora.command.gui: true
+      nexora.command.debug: true
+  nexora.alerts:
+    description: Allows staff members to receive in-game cheat violation alerts
+    default: op
+  nexora.bypass:
+    description: Bypasses all Nexora anti-cheat detections
+    default: false
+  nexora.command.help:
+    description: Access to the /nxanti help command
+    default: op
+  nexora.command.reload:
+    description: Access to the /nxanti reload command
+    default: op
+  nexora.command.info:
+    description: View detailed anti-cheat telemetry and VL info for a player
+    default: op
+  nexora.command.history:
+    description: View logged violation history for a player
+    default: op
+  nexora.command.reset:
+    description: Reset violation levels for a player
+    default: op
+  nexora.command.punish:
+    description: Manually execute punishments on a player
+    default: op
+  nexora.command.exempt:
+    description: Temporarily exempt a player from anti-cheat checks
+    default: op
+  nexora.command.gui:
+    description: Open the interactive staff anti-cheat GUI
+    default: op
+  nexora.command.debug:
+    description: Toggle or view debug information for specific checks
+    default: op

@@ -1,0 +1,75 @@
+# ==========================================================
+#              NEXORA ANTICHEAT - MESSAGES CONFIG
+#             MiniMessage & Multi-Language Support
+# ==========================================================
+
+prefix: "<#FF0000><bold>Nexora</bold></#FF0000> <dark_gray>»</dark_gray> "
+
+general:
+  no-permission: "<prefix><red>You do not have permission to execute this command.</red>"
+  player-not-found: "<prefix><red>Player <yellow><player></yellow> was not found online.</red>"
+  invalid-syntax: "<prefix><red>Invalid syntax. Type <yellow>/nxanti help</yellow> for help.</red>"
+  reload-success: "<prefix><green>Configuration, checks, and messages reloaded successfully in <yellow><ms>ms</yellow>!</green>"
+  reload-failed: "<prefix><red>Failed to reload configuration: <error></red>"
+
+alerts:
+  enabled: "<prefix><green>Staff violation alerts have been <bold>ENABLED</bold>.</green>"
+  disabled: "<prefix><red>Staff violation alerts have been <bold>DISABLED</bold>.</red>"
+  format: "<prefix><red><player></red> <gray>failed</gray> <yellow><check></yellow> <dark_gray>(<gray>VL: <red><vl></red>/<gold><max_vl></gold></gray>)</dark_gray>"
+  hover: "<gray>Check: <yellow><check></yellow>\nCategory: <aqua><category></aqua>\nDetails: <white><details></white>\nPing: <green><ping>ms</green> | TPS: <green><tps></green>\n<yellow>Click to teleport to player!</yellow></gray>"
+  click-teleport: "/tp <player>"
+
+info:
+  header: "<#FF0000>━━━━━━━━━━━━━━━ <bold>Nexora Player Info</bold> ━━━━━━━━━━━━━━━</#FF0000>"
+  player: "<gray>Player: <yellow><player></yellow> <dark_gray>(<white><uuid></white>)</dark_gray>"
+  ping-tps: "<gray>Ping: <green><ping>ms</green> | Server TPS: <green><tps></green>"
+  client-brand: "<gray>Client Brand: <aqua><brand></aqua>"
+  exempted: "<gray>Exempted: <yellow><exempt></yellow>"
+  total-vl: "<gray>Total Violations: <red><total_vl></red>"
+  active-checks-header: "<gray>Active Check Flags:</gray>"
+  check-entry: "  <dark_gray>•</dark_gray> <yellow><check></yellow>: <red><vl></red> <dark_gray>/ <gray><max_vl></gray></dark_gray>"
+  footer: "<#FF0000>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF0000>"
+
+history:
+  header: "<#FF0000>━━━━━━━━━━━━━ <bold>Violation History: <player></bold> ━━━━━━━━━━━━━</#FF0000>"
+  empty: "<prefix><gray>No violation logs found for <yellow><player></yellow>.</gray>"
+  entry: "<dark_gray>[<gray><time></gray>]</dark_gray> <yellow><check></yellow> <dark_gray>(<red>VL: <vl></red>)</dark_gray> <gray>- <white><details></white> <dark_gray>(<green><ping>ms</green>)</dark_gray>"
+  footer: "<#FF0000>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF0000>"
+
+reset:
+  success: "<prefix><green>Successfully reset all violations for <yellow><player></yellow>.</green>"
+  notify-player: "<prefix><gray>Your anti-cheat violation metrics have been cleared by an administrator.</gray>"
+
+exempt:
+  success: "<prefix><green>Player <yellow><player></yellow> is now exempt from checks for <yellow><duration></yellow>.</green>"
+  expired: "<prefix><yellow>Exemption for <player> has expired. Detections resumed.</yellow>"
+  removed: "<prefix><green>Removed exemption for <yellow><player></yellow>.</green>"
+
+punish:
+  warn: "<prefix><red><bold>WARNING:</bold> Unfair advantage detected. Please disable any illegal modifications.</red>"
+  kick-broadcast: "<prefix><red><player></red> <gray>was kicked by <#FF0000>Nexora</#FF0000> (<yellow><check></yellow> | Kick <kicks>/<max_kicks>).</gray>"
+  ban-broadcast: "<prefix><red><player></red> <gray>was banned by <#FF0000>Nexora</#FF0000> for <aqua><duration></aqua> (<yellow><check></yellow>).</gray>"
+  kick-reason: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>Disconnected: Unfair advantage detected (<yellow><check></yellow>).</red>\n<gray>If you believe this is a false flag, contact server staff.</gray>"
+  progressive-kick-reason: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>Disconnected for suspicious gameplay (<yellow><check></yellow>).</red>\n<yellow>Warning: <gold><kicks></gold>/<gold><max_kicks></gold> kicks before an automatic ban!</yellow>"
+  ban-reason: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>You are permanently banned for cheating (<yellow><check></yellow>).</red>\n<gray>Appeal at our support portal.</gray>"
+  ban-screen: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>You are banned from this server.</red>\n<gray>Reason: <yellow><reason></yellow>\nDuration: <aqua><duration></aqua>\nExpires: <gold><expires></gold>\nAppeal at our community Discord.</gray>"
+  progressive-ban-screen: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>You have been banned for suspicious modifications.</red>\n<gray>Check: <yellow><check></yellow>\nDuration: <aqua><duration></aqua> (Tier <tier>/4)\nExpires: Automatically after duration expires.</gray>"
+  ip-ban-screen: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>Your IP address is permanently banned.</red>\n<gray>Reason: <yellow><reason></yellow></gray>\n<gray>Banned by: <white><banner></white></gray>"
+  cracked-ban: "<#FF0000><bold>NEXORA SECURITY</bold></#FF0000>\n\n<red>Premium Mojang account required.\nOffline / cracked clients are forbidden on this server.</red>"
+  cracked-kick: "<#FF0000><bold>NEXORA SECURITY</bold></#FF0000>\n\n<red>Premium Mojang account required.\nPlease buy Minecraft at minecraft.net.</red>"
+  unban-success: "<prefix><green>Player <yellow><target></yellow> has been unbanned and their kick counter reset.</green>"
+  unban-ip-success: "<prefix><green>IP address <yellow><target></yellow> has been unbanned.</green>"
+  block: "<prefix><red>Suspicious interaction was blocked by <#FF0000>Nexora</#FF0000>.</red>"
+  xray-blocked: "<prefix><red>This ore crumbled away as you touched it...</red>"
+
+bans:
+  header: "<#FF0000>━━━━━━━━━━━━━ <bold>Ban History: <player></bold> ━━━━━━━━━━━━━</#FF0000>"
+  empty: "<prefix><gray>No ban records found for <yellow><player></yellow>.</gray>"
+  entry: "<status> <aqua><duration></aqua> <gray>- Reason: <yellow><reason></yellow> <dark_gray>(Expires: <gold><expires></gold>)</dark_gray></gray>"
+  footer: "<#FF0000>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF0000>"
+
+debug:
+  enabled: "<prefix><green>Debug mode enabled for check <yellow><check></yellow>.</green>"
+  disabled: "<prefix><red>Debug mode disabled for check <yellow><check></yellow>.</red>"
+  log: "<prefix><dark_gray>[DEBUG:<yellow><check></yellow>]</dark_gray> <gray><player>: <white><message></white></gray>"
+

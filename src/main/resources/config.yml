@@ -1,0 +1,134 @@
+# ==========================================================
+#              NEXORA ANTICHEAT - CORE CONFIG
+# ==========================================================
+
+# License Authentication & Web Panel Integration
+license:
+  # Enable license key enforcement
+  enabled: true
+  # Your unique Nexora License Key obtained from the Web Panel
+  key: "NX-DEMO-2026-KEY1"
+  # Name of your server displayed in the Web Panel
+  server-name: "Nexora Minecraft Server"
+  # Web Panel API URL (change to your web domain in production)
+  api-url: "http://localhost:3000/api"
+  # Telemetry heartbeat ping interval in seconds
+  heartbeat-interval-seconds: 60
+  # Allow server to run temporarily if licensing API is unreachable
+  allow-offline-grace: true
+
+settings:
+  # Automatically bypass anti-cheat checks for server operators (OPs)
+  ops-bypass: true
+
+  # Bedrock / GeyserMC player detection and handling
+  bedrock:
+    # Name prefix that GeyserMC / Floodgate applies to Bedrock players.
+    # Set to "" to disable prefix-based detection (use Floodgate API or permission instead).
+    prefix: "."
+    # If true, Bedrock players will have relaxed thresholds on movement and combat checks.
+    # They will NOT bypass checks entirely — only thresholds are adjusted.
+    relaxed-checks: true
+    # Checks to completely skip for Bedrock players (they don't apply to the Bedrock client):
+    skip-checks:
+      - "Phase"
+      - "InvalidMovement"
+      - "BadPackets"
+
+  # Banned Client Brand Blacklist
+  banned-clients:
+    enabled: true
+    # Case-insensitive substring match against client brand handshake
+    brands:
+      - "meteor"
+      - "wurst"
+      - "liquidbounce"
+      - "impact"
+      - "aristois"
+      - "ares"
+      - "sigma"
+
+  # Cracked / Offline-mode player detection
+  cracked-detection:
+    enabled: true
+    # Set to true ONLY if your server is running in offline mode (cracked server)
+    # When false and server is online-mode, offline-mode UUIDs (v3) are blocked.
+    server-is-offline-mode: false
+    # Action when cracked player is detected: BAN (permanent IP ban) or KICK
+    permanent-ban-cracked: true
+
+  # Progressive Ban System (3 kicks -> progressive ban escalation)
+  progressive-bans:
+    enabled: true
+    # Number of kicks before escalating to a temporary/permanent ban
+    kicks-before-ban: 3
+    # Escalation Tiers:
+    # Kick 1-2: Warning kicks
+    # Kick 3:   Tier 1 (24 Hours)
+    # Kick 4:   Tier 2 (7 Days)
+    # Kick 5:   Tier 3 (30 Days)
+    # Kick 6+:  Tier 4 (Permanent / Lifetime)
+
+  # IP Ban enforcement
+  bans:
+    # Automatically apply an IP address ban on permanent (Tier 4) bans
+    ip-ban-on-permanent: true
+    # Apply IP address ban when cracked player is detected
+    ip-ban-on-cracked: true
+
+  # Enable lag compensation mechanisms (skip or adjust checks during lag spikes)
+  lag-compensation:
+    enabled: true
+    min-tps: 18.5
+    max-ping-ms: 350
+    teleport-immunity-ticks: 20
+    respawn-immunity-ticks: 40
+    join-immunity-ticks: 60
+    velocity-immunity-ticks: 30
+
+  # Periodic violation level (VL) decay for all players
+  vl-decay:
+    interval-seconds: 15
+    decay-amount: 1.0
+
+alerts:
+  # Enable staff in-game chat alerts
+  enabled: true
+  permission: "nexora.alerts"
+  # Minimum cooldown in milliseconds between chat alerts for the same player & check
+  cooldown-ms: 1000
+
+  # Discord Webhook integration (Async, non-blocking HTTP)
+  discord:
+    enabled: false
+    webhook-url: "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL_HERE"
+    embed-color: 16711680 # #FF0000 in decimal integer
+    # Only send webhook notifications when a player is Kicked or Banned (prevents spam)
+    only-on-punishment: true
+    # Display player IP address in Discord embed (recommended false unless private staff channel)
+    show-ip-in-embed: false
+
+storage:
+  # Supported types: SQLITE (zero-config local DB) or MYSQL (remote database via HikariCP)
+  type: "SQLITE"
+  sqlite:
+    file-name: "nexora_violations.db"
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "anticheat"
+    username: "root"
+    password: "password"
+    pool:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      max-lifetime: 1800000
+
+punishments:
+  # Default action when max-vl is exceeded
+  # Available types: SETBACK, WARN, KICK, BAN, COMMAND, BLOCK
+  default-action: "KICK"
+  commands:
+    # Executed if action is COMMAND
+    - "say %player% was caught using unfair advantages (%check%)!"
