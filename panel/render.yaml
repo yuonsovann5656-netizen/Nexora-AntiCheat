@@ -2,8 +2,8 @@
 #        NEXORA PANEL - RENDER DEPLOYMENT BLUEPRINT
 # ==========================================================
 # Deployment Target: Render.com
-# Region: Singapore (ap-southeast-1)
-# Plan: Free Tier
+# Region: Singapore (singapore)
+# Plan: Free Tier (plan: free)
 # Database: Supabase PostgreSQL (via DATABASE_URL env var)
 # ==========================================================
 

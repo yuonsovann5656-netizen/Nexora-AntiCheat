@@ -4,8 +4,8 @@
   "description": "Nexora AntiCheat Web Panel - Admin Fleet Manager, Buyer Portal & License Authority",
   "scripts": {
     "start": "node backend/server.js",
-    "build": "npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build",
-    "render:build": "npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build",
+    "build": "npm --prefix backend install && npm --prefix frontend install --include=dev && npm --prefix frontend run build",
+    "render:build": "npm --prefix backend install && npm --prefix frontend install --include=dev && npm --prefix frontend run build",
     "dev:backend": "node backend/server.js",
     "dev:frontend": "cd frontend && npm run dev"
   },
