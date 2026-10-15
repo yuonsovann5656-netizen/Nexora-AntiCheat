@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AdminPanel from './components/AdminPanel';
 import UserPanel from './components/UserPanel';
 import EmbedGuide from './components/EmbedGuide';
+import { API_BASE } from './apiConfig';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('admin'); // 'admin', 'user', 'embed'
@@ -15,7 +16,7 @@ export default function App() {
 
   async function checkHealth() {
     try {
-      const res = await fetch('http://localhost:3000/api/admin/stats');
+      const res = await fetch(`${API_BASE}/api/admin/stats`);
       setBackendOnline(res.ok);
     } catch (e) {
       setBackendOnline(false);

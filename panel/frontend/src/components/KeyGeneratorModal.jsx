@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE } from '../apiConfig';
 
 export default function KeyGeneratorModal({ isOpen, onClose, onCreated }) {
   const [owner, setOwner] = useState('');
@@ -22,7 +23,7 @@ export default function KeyGeneratorModal({ isOpen, onClose, onCreated }) {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:3000/api/admin/licenses/create', {
+      const res = await fetch(`${API_BASE}/api/admin/licenses/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

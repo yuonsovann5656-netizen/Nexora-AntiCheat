@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE } from '../apiConfig';
 
 export default function EmbedGuide() {
   const [copied, setCopied] = useState(false);
@@ -7,13 +8,15 @@ export default function EmbedGuide() {
   const [generatedKey, setGeneratedKey] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const panelOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://your-panel.onrender.com';
+
   async function handleDemoGenerate(e) {
     e.preventDefault();
     if (!buyerName.trim()) return;
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:3000/api/admin/licenses/create', {
+      const res = await fetch(`${API_BASE}/api/admin/licenses/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -57,7 +60,7 @@ async function generateKey(e) {
   const name = document.getElementById('nexora-name').value;
   const email = document.getElementById('nexora-email').value;
   
-  const res = await fetch('http://localhost:3000/api/admin/licenses/create', {
+  const res = await fetch('${panelOrigin}/api/admin/licenses/create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ owner: name, email: email, tier: 'LIFETIME', maxServers: 1 })

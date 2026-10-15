@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import KeyGeneratorModal from './KeyGeneratorModal';
+import { API_BASE } from '../apiConfig';
 
 export default function AdminPanel() {
   const [stats, setStats] = useState({
@@ -26,9 +27,9 @@ export default function AdminPanel() {
   async function fetchData() {
     try {
       const [statsRes, serversRes, licensesRes] = await Promise.all([
-        fetch('http://localhost:3000/api/admin/stats'),
-        fetch('http://localhost:3000/api/admin/servers'),
-        fetch('http://localhost:3000/api/admin/licenses')
+        fetch(`${API_BASE}/api/admin/stats`),
+        fetch(`${API_BASE}/api/admin/servers`),
+        fetch(`${API_BASE}/api/admin/licenses`)
       ]);
 
       if (statsRes.ok) setStats(await statsRes.json());
@@ -46,7 +47,7 @@ export default function AdminPanel() {
     if (reason === null) return;
 
     try {
-      const res = await fetch(`http://localhost:3000/api/admin/servers/${serverId}/ban`, {
+      const res = await fetch(`${API_BASE}/api/admin/servers/${serverId}/ban`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason })
@@ -69,7 +70,7 @@ export default function AdminPanel() {
     }
 
     try {
-      const res = await fetch(`http://localhost:3000/api/admin/licenses/${encodeURIComponent(key)}/status`, {
+      const res = await fetch(`${API_BASE}/api/admin/licenses/${encodeURIComponent(key)}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, reason })
@@ -86,7 +87,7 @@ export default function AdminPanel() {
     if (!confirm(`Reset bound IP for key ${key}? The user will be able to bind from a new server IP.`)) return;
 
     try {
-      const res = await fetch(`http://localhost:3000/api/admin/licenses/${encodeURIComponent(key)}/reset-ip`, {
+      const res = await fetch(`${API_BASE}/api/admin/licenses/${encodeURIComponent(key)}/reset-ip`, {
         method: 'POST'
       });
       if (res.ok) {

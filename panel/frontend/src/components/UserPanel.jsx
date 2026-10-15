@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../apiConfig';
 
 export default function UserPanel() {
   const [licenseKeyInput, setLicenseKeyInput] = useState('NX-DEMO-2026-KEY1');
@@ -25,7 +26,7 @@ export default function UserPanel() {
     setResetMsg('');
 
     try {
-      const res = await fetch('http://localhost:3000/api/user/portal', {
+      const res = await fetch(`${API_BASE}/api/user/portal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: licenseKeyInput.trim() })
@@ -47,7 +48,7 @@ export default function UserPanel() {
 
   async function loadPortalData(key) {
     try {
-      const res = await fetch('http://localhost:3000/api/user/portal', {
+      const res = await fetch(`${API_BASE}/api/user/portal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key })
@@ -66,7 +67,7 @@ export default function UserPanel() {
 
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3000/api/user/reset-ip', {
+      const res = await fetch(`${API_BASE}/api/user/reset-ip`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: activeSession })
@@ -272,7 +273,7 @@ export default function UserPanel() {
   enabled: true
   key: "${license.key}"
   server-name: "${server ? server.serverName : 'My Minecraft Server'}"
-  api-url: "http://localhost:3000/api"
+  api-url: "${typeof window !== 'undefined' ? window.location.origin : 'https://your-panel.onrender.com'}"
   heartbeat-interval-seconds: 60`}
           </pre>
         </div>
