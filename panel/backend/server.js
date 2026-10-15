@@ -401,8 +401,9 @@ app.post('/api/user/reset-ip', (req, res) => {
   res.json({ success: true, message: 'Your server IP binding has been cleared! Start your server from the new hosting to bind.' });
 });
 
-// Fallback to index.html for client-side routing
-app.get('*', (req, res) => {
+// Fallback to index.html for client-side routing (compatible with Express 4 and Express 5)
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
   const indexHtml = path.join(frontendDist, 'index.html');
   if (fs.existsSync(indexHtml)) {
     res.sendFile(indexHtml);
