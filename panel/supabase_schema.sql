@@ -22,7 +22,19 @@ CREATE TABLE IF NOT EXISTS nexora_licenses (
     ban_reason TEXT
 );
 
--- 2. Minecraft Servers Fleet Table
+-- 2. Registered Users Table (Auth with Username, Password Hash, Salt & License Key)
+CREATE TABLE IF NOT EXISTS nexora_users (
+    id VARCHAR(64) PRIMARY KEY,
+    username VARCHAR(64) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    salt VARCHAR(64) NOT NULL,
+    license_key VARCHAR(64) NOT NULL REFERENCES nexora_licenses(key) ON DELETE CASCADE,
+    role VARCHAR(32) NOT NULL DEFAULT 'USER',
+    created_at BIGINT NOT NULL,
+    last_login BIGINT
+);
+
+-- 3. Minecraft Servers Fleet Table
 CREATE TABLE IF NOT EXISTS nexora_servers (
     id VARCHAR(64) PRIMARY KEY,
     license_key VARCHAR(64) NOT NULL REFERENCES nexora_licenses(key) ON DELETE CASCADE,
@@ -38,7 +50,22 @@ CREATE TABLE IF NOT EXISTS nexora_servers (
     first_seen BIGINT NOT NULL
 );
 
--- 3. Telemetry & Cheat Violations Log Table
+-- 4. User Controlled Player Bans Table
+CREATE TABLE IF NOT EXISTS nexora_player_bans (
+    id VARCHAR(64) PRIMARY KEY,
+    license_key VARCHAR(64) NOT NULL REFERENCES nexora_licenses(key) ON DELETE CASCADE,
+    server_name VARCHAR(255),
+    player_name VARCHAR(64) NOT NULL,
+    reason TEXT NOT NULL,
+    duration VARCHAR(64) NOT NULL DEFAULT 'PERMANENT',
+    banned_by VARCHAR(64) NOT NULL,
+    ip_banned BOOLEAN NOT NULL DEFAULT FALSE,
+    banned_at BIGINT NOT NULL,
+    expires_at BIGINT,
+    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE'
+);
+
+-- 5. Telemetry & Cheat Violations Log Table
 CREATE TABLE IF NOT EXISTS nexora_violations (
     id VARCHAR(64) PRIMARY KEY,
     license_key VARCHAR(64) NOT NULL REFERENCES nexora_licenses(key) ON DELETE CASCADE,
@@ -50,14 +77,11 @@ CREATE TABLE IF NOT EXISTS nexora_violations (
     timestamp BIGINT NOT NULL
 );
 
--- Indexes for lightning fast lookups
+-- Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_users_username ON nexora_users(username);
+CREATE INDEX IF NOT EXISTS idx_users_license ON nexora_users(license_key);
 CREATE INDEX IF NOT EXISTS idx_servers_license ON nexora_servers(license_key);
 CREATE INDEX IF NOT EXISTS idx_servers_status ON nexora_servers(status);
+CREATE INDEX IF NOT EXISTS idx_player_bans_license ON nexora_player_bans(license_key);
 CREATE INDEX IF NOT EXISTS idx_violations_license ON nexora_violations(license_key);
 CREATE INDEX IF NOT EXISTS idx_violations_timestamp ON nexora_violations(timestamp DESC);
-
--- Initial seed demo license (if table is empty)
-INSERT INTO nexora_licenses (key, owner, email, tier, status, bound_ip, max_servers, created_at, expires_at, ban_reason)
-VALUES 
-    ('NX-DEMO-2026-KEY1', 'Server Owner Alpha', 'owner@example.com', 'LIFETIME', 'ACTIVE', NULL, 1, EXTRACT(EPOCH FROM NOW()) * 1000, NULL, NULL)
-ON CONFLICT (key) DO NOTHING;

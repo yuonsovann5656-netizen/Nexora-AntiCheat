@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { Pool } = require('pg');
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -13,74 +14,30 @@ if (!fs.existsSync(DATA_DIR)) {
 let memoryStore = null;
 let pgPool = null;
 
-// Initial default state
+// Clean default state without demo accounts
 const defaultState = {
-  adminSecret: 'nexora_admin_secret_2026',
-  licenses: [
-    {
-      key: 'NX-DEMO-2026-KEY1',
-      owner: 'Server Owner Alpha',
-      email: 'owner@example.com',
-      tier: 'LIFETIME',
-      status: 'ACTIVE',
-      boundIp: null,
-      maxServers: 1,
-      createdAt: Date.now() - 86400000 * 5,
-      expiresAt: null,
-      banReason: null
-    },
-    {
-      key: 'NX-TEST-BANNED-KEY2',
-      owner: 'Malicious Leaker',
-      email: 'leaker@pirate.org',
-      tier: '30_DAYS',
-      status: 'BANNED',
-      boundIp: '198.51.100.44',
-      maxServers: 1,
-      createdAt: Date.now() - 86400000 * 10,
-      expiresAt: Date.now() + 86400000 * 20,
-      banReason: 'Leaking plugin JAR on pirate forums'
-    }
-  ],
-  servers: [
-    {
-      id: 'srv_demo_1',
-      licenseKey: 'NX-DEMO-2026-KEY1',
-      serverName: 'Nexora Survival SMP',
-      ip: '127.0.0.1',
-      port: 25565,
-      mcVersion: 'Paper 26.2 (build 134)',
-      pluginVersion: '1.0.0',
-      onlinePlayers: 24,
-      tps: 19.95,
-      status: 'ONLINE',
-      lastHeartbeat: Date.now() - 15000,
-      firstSeen: Date.now() - 86400000 * 3
-    }
-  ],
-  violations: [
-    {
-      id: 'viol_1',
-      licenseKey: 'NX-DEMO-2026-KEY1',
-      serverName: 'Nexora Survival SMP',
-      playerName: 'CheaterBoy_99',
-      checkId: 'KillAura',
-      vl: 12.0,
-      details: 'Angle snap: 124.5 deg/tick > 90.0',
-      timestamp: Date.now() - 60000 * 25
-    },
-    {
-      id: 'viol_2',
-      licenseKey: 'NX-DEMO-2026-KEY1',
-      serverName: 'Nexora Survival SMP',
-      playerName: 'SpeedyMiner',
-      checkId: 'Speed',
-      vl: 8.5,
-      details: 'Speed: 0.542 > Max: 0.360',
-      timestamp: Date.now() - 60000 * 10
-    }
-  ]
+  adminSecret: process.env.ADMIN_SECRET || 'nexora_admin_2026',
+  users: [],
+  licenses: [],
+  servers: [],
+  violations: [],
+  playerBans: []
 };
+
+// Cryptographic password hashing helpers (Zero external dependencies)
+function hashPassword(password, salt) {
+  if (!salt) {
+    salt = crypto.randomBytes(16).toString('hex');
+  }
+  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return { hash, salt };
+}
+
+function verifyPassword(password, hash, salt) {
+  if (!password || !hash || !salt) return false;
+  const verify = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return verify === hash;
+}
 
 /**
  * Initialize connection to Supabase PostgreSQL or local fallback.
@@ -98,13 +55,14 @@ async function initDatabase() {
         },
         max: 10,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000
+        connectionTimeoutMillis: 8000
       });
 
-      // Test connection & auto-migrate tables
+      // Test connection & auto-migrate all tables in Supabase
       const client = await pgPool.connect();
       try {
         await client.query(`
+          -- 1. Licenses Table
           CREATE TABLE IF NOT EXISTS nexora_licenses (
             key VARCHAR(64) PRIMARY KEY,
             owner VARCHAR(255) NOT NULL,
@@ -118,6 +76,19 @@ async function initDatabase() {
             ban_reason TEXT
           );
 
+          -- 2. Registered Users Table (Auth with Username, Password Hash, Salt & License Key)
+          CREATE TABLE IF NOT EXISTS nexora_users (
+            id VARCHAR(64) PRIMARY KEY,
+            username VARCHAR(64) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            salt VARCHAR(64) NOT NULL,
+            license_key VARCHAR(64) NOT NULL,
+            role VARCHAR(32) NOT NULL DEFAULT 'USER',
+            created_at BIGINT NOT NULL,
+            last_login BIGINT
+          );
+
+          -- 3. Minecraft Servers Fleet Table
           CREATE TABLE IF NOT EXISTS nexora_servers (
             id VARCHAR(64) PRIMARY KEY,
             license_key VARCHAR(64) NOT NULL,
@@ -133,6 +104,22 @@ async function initDatabase() {
             first_seen BIGINT NOT NULL
           );
 
+          -- 4. User Controlled Player Bans Table
+          CREATE TABLE IF NOT EXISTS nexora_player_bans (
+            id VARCHAR(64) PRIMARY KEY,
+            license_key VARCHAR(64) NOT NULL,
+            server_name VARCHAR(255),
+            player_name VARCHAR(64) NOT NULL,
+            reason TEXT NOT NULL,
+            duration VARCHAR(64) NOT NULL DEFAULT 'PERMANENT',
+            banned_by VARCHAR(64) NOT NULL,
+            ip_banned BOOLEAN NOT NULL DEFAULT FALSE,
+            banned_at BIGINT NOT NULL,
+            expires_at BIGINT,
+            status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE'
+          );
+
+          -- 5. Violation History Log Table
           CREATE TABLE IF NOT EXISTS nexora_violations (
             id VARCHAR(64) PRIMARY KEY,
             license_key VARCHAR(64) NOT NULL,
@@ -143,71 +130,86 @@ async function initDatabase() {
             details TEXT,
             timestamp BIGINT NOT NULL
           );
+
+          -- Indexes for ultra fast lookups
+          CREATE INDEX IF NOT EXISTS idx_users_username ON nexora_users(username);
+          CREATE INDEX IF NOT EXISTS idx_users_license ON nexora_users(license_key);
+          CREATE INDEX IF NOT EXISTS idx_servers_license ON nexora_servers(license_key);
+          CREATE INDEX IF NOT EXISTS idx_player_bans_license ON nexora_player_bans(license_key);
+          CREATE INDEX IF NOT EXISTS idx_violations_license ON nexora_violations(license_key);
+          CREATE INDEX IF NOT EXISTS idx_violations_timestamp ON nexora_violations(timestamp DESC);
         `);
         console.log('[Database] Supabase PostgreSQL tables verified/created successfully.');
 
         // Load data from Supabase
         const licRes = await client.query('SELECT * FROM nexora_licenses');
+        const usrRes = await client.query('SELECT * FROM nexora_users');
         const srvRes = await client.query('SELECT * FROM nexora_servers');
-        const vioRes = await client.query('SELECT * FROM nexora_violations ORDER BY timestamp DESC LIMIT 200');
+        const banRes = await client.query('SELECT * FROM nexora_player_bans ORDER BY banned_at DESC LIMIT 500');
+        const vioRes = await client.query('SELECT * FROM nexora_violations ORDER BY timestamp DESC LIMIT 500');
 
-        if (licRes.rows.length === 0) {
-          // Seed initial default demo data into Supabase
-          console.log('[Database] Seeding initial demo license records to Supabase...');
-          for (const lic of defaultState.licenses) {
-            await client.query(
-              'INSERT INTO nexora_licenses (key, owner, email, tier, status, bound_ip, max_servers, created_at, expires_at, ban_reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT DO NOTHING',
-              [lic.key, lic.owner, lic.email, lic.tier, lic.status, lic.boundIp, lic.maxServers, lic.createdAt, lic.expiresAt, lic.banReason]
-            );
-          }
-          for (const s of defaultState.servers) {
-            await client.query(
-              'INSERT INTO nexora_servers (id, license_key, server_name, ip, port, mc_version, plugin_version, online_players, tps, status, last_heartbeat, first_seen) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ON CONFLICT DO NOTHING',
-              [s.id, s.licenseKey, s.serverName, s.ip, s.port, s.mcVersion, s.pluginVersion, s.onlinePlayers, s.tps, s.status, s.lastHeartbeat, s.firstSeen]
-            );
-          }
-          memoryStore = JSON.parse(JSON.stringify(defaultState));
-        } else {
-          memoryStore = {
-            adminSecret: defaultState.adminSecret,
-            licenses: licRes.rows.map(r => ({
-              key: r.key,
-              owner: r.owner,
-              email: r.email,
-              tier: r.tier,
-              status: r.status,
-              boundIp: r.bound_ip,
-              maxServers: r.max_servers,
-              createdAt: Number(r.created_at),
-              expiresAt: r.expires_at ? Number(r.expires_at) : null,
-              banReason: r.ban_reason
-            })),
-            servers: srvRes.rows.map(r => ({
-              id: r.id,
-              licenseKey: r.license_key,
-              serverName: r.server_name,
-              ip: r.ip,
-              port: r.port,
-              mcVersion: r.mc_version,
-              pluginVersion: r.plugin_version,
-              onlinePlayers: r.online_players,
-              tps: Number(r.tps),
-              status: r.status,
-              lastHeartbeat: Number(r.last_heartbeat),
-              firstSeen: Number(r.first_seen)
-            })),
-            violations: vioRes.rows.map(r => ({
-              id: r.id,
-              licenseKey: r.license_key,
-              serverName: r.server_name,
-              playerName: r.player_name,
-              checkId: r.check_id,
-              vl: Number(r.vl),
-              details: r.details,
-              timestamp: Number(r.timestamp)
-            }))
-          };
-        }
+        memoryStore = {
+          adminSecret: defaultState.adminSecret,
+          users: usrRes.rows.map(r => ({
+            id: r.id,
+            username: r.username,
+            passwordHash: r.password_hash,
+            salt: r.salt,
+            licenseKey: r.license_key,
+            role: r.role,
+            createdAt: Number(r.created_at),
+            lastLogin: r.last_login ? Number(r.last_login) : null
+          })),
+          licenses: licRes.rows.map(r => ({
+            key: r.key,
+            owner: r.owner,
+            email: r.email,
+            tier: r.tier,
+            status: r.status,
+            boundIp: r.bound_ip,
+            maxServers: r.max_servers,
+            createdAt: Number(r.created_at),
+            expiresAt: r.expires_at ? Number(r.expires_at) : null,
+            banReason: r.ban_reason
+          })),
+          servers: srvRes.rows.map(r => ({
+            id: r.id,
+            licenseKey: r.license_key,
+            serverName: r.server_name,
+            ip: r.ip,
+            port: r.port,
+            mcVersion: r.mc_version,
+            pluginVersion: r.plugin_version,
+            onlinePlayers: r.online_players,
+            tps: Number(r.tps),
+            status: r.status,
+            lastHeartbeat: Number(r.last_heartbeat),
+            firstSeen: Number(r.first_seen)
+          })),
+          playerBans: banRes.rows.map(r => ({
+            id: r.id,
+            licenseKey: r.license_key,
+            serverName: r.server_name,
+            playerName: r.player_name,
+            reason: r.reason,
+            duration: r.duration,
+            bannedBy: r.banned_by,
+            ipBanned: r.ip_banned,
+            bannedAt: Number(r.banned_at),
+            expiresAt: r.expires_at ? Number(r.expires_at) : null,
+            status: r.status
+          })),
+          violations: vioRes.rows.map(r => ({
+            id: r.id,
+            licenseKey: r.license_key,
+            serverName: r.server_name,
+            playerName: r.player_name,
+            checkId: r.check_id,
+            vl: Number(r.vl),
+            details: r.details,
+            timestamp: Number(r.timestamp)
+          }))
+        };
       } finally {
         client.release();
       }
@@ -229,7 +231,14 @@ function loadLocalStore() {
       memoryStore = JSON.parse(JSON.stringify(defaultState));
     } else {
       const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-      memoryStore = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      // Ensure arrays exist
+      parsed.users = parsed.users || [];
+      parsed.licenses = parsed.licenses || [];
+      parsed.servers = parsed.servers || [];
+      parsed.violations = parsed.violations || [];
+      parsed.playerBans = parsed.playerBans || [];
+      memoryStore = parsed;
     }
   } catch (err) {
     memoryStore = JSON.parse(JSON.stringify(defaultState));
@@ -265,6 +274,18 @@ async function syncToPostgres(data) {
   if (!pgPool) return;
   const client = await pgPool.connect();
   try {
+    // Sync users
+    for (const u of data.users) {
+      await client.query(`
+        INSERT INTO nexora_users (id, username, password_hash, salt, license_key, role, created_at, last_login)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (id) DO UPDATE SET
+          password_hash = EXCLUDED.password_hash,
+          salt = EXCLUDED.salt,
+          last_login = EXCLUDED.last_login;
+      `, [u.id, u.username, u.passwordHash, u.salt, u.licenseKey, u.role, u.createdAt, u.lastLogin]);
+    }
+
     // Sync licenses
     for (const lic of data.licenses) {
       await client.query(`
@@ -300,6 +321,17 @@ async function syncToPostgres(data) {
       `, [s.id, s.licenseKey, s.serverName, s.ip, s.port, s.mcVersion, s.pluginVersion, s.onlinePlayers, s.tps, s.status, s.lastHeartbeat, s.firstSeen]);
     }
 
+    // Sync player bans
+    for (const b of (data.playerBans || [])) {
+      await client.query(`
+        INSERT INTO nexora_player_bans (id, license_key, server_name, player_name, reason, duration, banned_by, ip_banned, banned_at, expires_at, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (id) DO UPDATE SET
+          status = EXCLUDED.status,
+          reason = EXCLUDED.reason;
+      `, [b.id, b.licenseKey, b.serverName, b.playerName, b.reason, b.duration, b.bannedBy, b.ipBanned, b.bannedAt, b.expiresAt, b.status]);
+    }
+
     // Sync latest 20 violations
     for (const v of data.violations.slice(0, 20)) {
       await client.query(`
@@ -324,5 +356,7 @@ module.exports = {
   initDatabase,
   readData,
   writeData,
-  generateLicenseKey
+  generateLicenseKey,
+  hashPassword,
+  verifyPassword
 };

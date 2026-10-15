@@ -5,7 +5,7 @@ import EmbedGuide from './components/EmbedGuide';
 import { API_BASE } from './apiConfig';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('admin'); // 'admin', 'user', 'embed'
+  const [currentView, setCurrentView] = useState('user'); // Default to 'user' client portal
   const [backendOnline, setBackendOnline] = useState(false);
 
   useEffect(() => {

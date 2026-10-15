@@ -8,12 +8,15 @@ export default function AdminPanel() {
     activeServersOnline: 0,
     totalLicenses: 0,
     bannedLicenses: 0,
+    totalUsers: 0,
+    totalPlayerBans: 0,
     totalViolations: 0
   });
 
   const [servers, setServers] = useState([]);
   const [licenses, setLicenses] = useState([]);
-  const [activeTab, setActiveTab] = useState('servers'); // 'servers' or 'licenses'
+  const [users, setUsers] = useState([]);
+  const [activeTab, setActiveTab] = useState('servers'); // 'servers', 'users', 'licenses'
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,15 +29,17 @@ export default function AdminPanel() {
 
   async function fetchData() {
     try {
-      const [statsRes, serversRes, licensesRes] = await Promise.all([
+      const [statsRes, serversRes, licensesRes, usersRes] = await Promise.all([
         fetch(`${API_BASE}/api/admin/stats`),
         fetch(`${API_BASE}/api/admin/servers`),
-        fetch(`${API_BASE}/api/admin/licenses`)
+        fetch(`${API_BASE}/api/admin/licenses`),
+        fetch(`${API_BASE}/api/admin/users`)
       ]);
 
       if (statsRes.ok) setStats(await statsRes.json());
       if (serversRes.ok) setServers(await serversRes.json());
       if (licensesRes.ok) setLicenses(await licensesRes.json());
+      if (usersRes.ok) setUsers(await usersRes.json());
     } catch (e) {
       console.error('Error fetching admin data:', e);
     } finally {
@@ -105,308 +110,302 @@ export default function AdminPanel() {
     setTimeout(() => setCopiedKey(null), 2500);
   }
 
-  function formatTimeAgo(timestamp) {
-    if (!timestamp) return 'Never';
-    const seconds = Math.floor((Date.now() - timestamp) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ago`;
-  }
-
   return (
     <div>
-      {/* Top Banner Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        <div className="glass-panel" style={{ padding: '20px' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase' }}>
-            🖥️ Servers Hosted
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: '800', marginTop: '6px', color: '#ffffff' }}>
+      {/* Metrics Row */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '16px',
+        marginBottom: '28px'
+      }}>
+        <div className="glass-panel stat-card">
+          <div style={{ fontSize: '13px', color: '#8b94a5', marginBottom: '6px' }}>Total Servers Hosted</div>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#ffffff' }}>
             {stats.totalServersHosted}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--green)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></span>
-            {stats.activeServersOnline} Online Right Now
+          <div style={{ fontSize: '12px', color: '#10b981', marginTop: '4px' }}>
+            {stats.activeServersOnline} online now
           </div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '20px' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase' }}>
-            🔑 Total Licenses Issued
+        <div className="glass-panel stat-card">
+          <div style={{ fontSize: '13px', color: '#8b94a5', marginBottom: '6px' }}>Registered Users</div>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#38bdf8' }}>
+            {stats.totalUsers}
           </div>
-          <div style={{ fontSize: '32px', fontWeight: '800', marginTop: '6px', color: '#ff0000' }}>
+          <div style={{ fontSize: '12px', color: '#8b94a5', marginTop: '4px' }}>
+            Synced in Supabase
+          </div>
+        </div>
+
+        <div className="glass-panel stat-card">
+          <div style={{ fontSize: '13px', color: '#8b94a5', marginBottom: '6px' }}>Active Player Bans</div>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#ff4444' }}>
+            {stats.totalPlayerBans}
+          </div>
+          <div style={{ fontSize: '12px', color: '#8b94a5', marginTop: '4px' }}>
+            Controlled by users
+          </div>
+        </div>
+
+        <div className="glass-panel stat-card">
+          <div style={{ fontSize: '13px', color: '#8b94a5', marginBottom: '6px' }}>Issued Licenses</div>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>
             {stats.totalLicenses}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Single-host verified keys
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '20px' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase' }}>
-            🚫 Banned / Suspended Keys
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: '800', marginTop: '6px', color: stats.bannedLicenses > 0 ? '#ef4444' : '#10b981' }}>
-            {stats.bannedLicenses}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Plugins auto-disable on remote hosts
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '20px' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase' }}>
-            🛡️ Violations Intercepted
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: '800', marginTop: '6px', color: '#f59e0b' }}>
-            {stats.totalViolations}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Synchronized telemetry
+          <div style={{ fontSize: '12px', color: stats.bannedLicenses > 0 ? '#ef4444' : '#8b94a5', marginTop: '4px' }}>
+            {stats.bannedLicenses} banned
           </div>
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      {/* Tabs and Actions Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '18px',
+        flexWrap: 'wrap',
+        gap: '12px'
+      }}>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={() => setActiveTab('servers')}
-            style={{
-              background: activeTab === 'servers' ? 'rgba(255, 0, 0, 0.15)' : 'transparent',
-              color: activeTab === 'servers' ? '#ff0000' : 'var(--text-muted)',
-              border: `1px solid ${activeTab === 'servers' ? '#ff0000' : 'var(--border)'}`,
-              padding: '8px 18px',
-              borderRadius: '8px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
+            className={`btn ${activeTab === 'servers' ? 'btn-primary' : 'btn-secondary'}`}
           >
-            🖥️ Active Minecraft Servers ({servers.length})
+            🖥️ Connected Servers ({servers.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`btn ${activeTab === 'users' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            👥 Registered Users ({users.length})
           </button>
           <button
             onClick={() => setActiveTab('licenses')}
-            style={{
-              background: activeTab === 'licenses' ? 'rgba(255, 0, 0, 0.15)' : 'transparent',
-              color: activeTab === 'licenses' ? '#ff0000' : 'var(--text-muted)',
-              border: `1px solid ${activeTab === 'licenses' ? '#ff0000' : 'var(--border)'}`,
-              padding: '8px 18px',
-              borderRadius: '8px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
+            className={`btn ${activeTab === 'licenses' ? 'btn-primary' : 'btn-secondary'}`}
           >
             🔑 License Keys ({licenses.length})
           </button>
         </div>
 
-        <button onClick={() => setIsModalOpen(true)} className="btn-red">
-          <span>+</span> Generate New Key
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="btn btn-primary"
+          style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+        >
+          ➕ Generate New License
         </button>
       </div>
 
-      {/* View 1: Active Servers Fleet */}
+      {/* TAB 1: CONNECTED SERVERS */}
       {activeTab === 'servers' && (
         <div className="glass-panel" style={{ overflow: 'hidden' }}>
-          <table className="nexora-table">
-            <thead>
-              <tr>
-                <th>Server Name</th>
-                <th>Host IP & Port</th>
-                <th>Minecraft / Platform</th>
-                <th>Online Players</th>
-                <th>TPS</th>
-                <th>Status</th>
-                <th>Last Ping</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {servers.length === 0 ? (
-                <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
-                    No Minecraft servers connected yet. Start a server with a valid license key to appear here!
-                  </td>
-                </tr>
-              ) : (
-                servers.map(server => (
-                  <tr key={server.id}>
-                    <td>
-                      <div style={{ fontWeight: '600', color: '#ffffff' }}>{server.serverName}</div>
-                      <div className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        Key: {server.licenseKey}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="mono" style={{ background: '#181d27', padding: '3px 7px', borderRadius: '4px', fontSize: '12px' }}>
-                        {server.ip}:{server.port}
-                      </span>
-                    </td>
-                    <td>
-                      <span style={{ fontSize: '13px' }}>{server.mcVersion}</span>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>v{server.pluginVersion}</div>
-                    </td>
-                    <td>
-                      <span style={{ fontWeight: '700', color: '#38bdf8' }}>
-                        👤 {server.onlinePlayers}
-                      </span>
-                    </td>
-                    <td>
-                      <span style={{
-                        fontWeight: '700',
-                        color: server.tps >= 19.0 ? '#10b981' : server.tps >= 16.0 ? '#f59e0b' : '#ef4444'
-                      }}>
-                        {server.tps ? server.tps.toFixed(1) : '20.0'}
-                      </span>
-                    </td>
-                    <td>
-                      {server.status === 'BANNED' ? (
-                        <span className="badge-banned">BANNED</span>
-                      ) : server.isOnline ? (
-                        <span className="badge-online">
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34d399' }}></span>
-                          ONLINE
-                        </span>
-                      ) : (
-                        <span className="badge-offline">OFFLINE</span>
-                      )}
-                    </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-                      {formatTimeAgo(server.lastHeartbeat)}
-                    </td>
-                    <td>
-                      {server.status !== 'BANNED' ? (
-                        <button
-                          onClick={() => handleBanServer(server.id, server.serverName)}
-                          className="btn-danger-outline"
-                          title="Instantly disables the plugin on this server and bans the license key"
-                        >
-                          🚫 Ban Server
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: '600' }}>Banned</span>
-                      )}
-                    </td>
+          {servers.length === 0 ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: '#8b94a5' }}>
+              No Minecraft servers have connected yet. Run the plugin on a server with a valid license key.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)', color: '#8b94a5' }}>
+                    <th style={{ padding: '14px 18px' }}>Server Name</th>
+                    <th style={{ padding: '14px 18px' }}>Host IP : Port</th>
+                    <th style={{ padding: '14px 18px' }}>License Key</th>
+                    <th style={{ padding: '14px 18px' }}>TPS</th>
+                    <th style={{ padding: '14px 18px' }}>Players</th>
+                    <th style={{ padding: '14px 18px' }}>Status</th>
+                    <th style={{ padding: '14px 18px', textAlign: 'right' }}>Actions</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {servers.map(server => (
+                    <tr key={server.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '14px 18px', fontWeight: '600', color: '#ffffff' }}>
+                        {server.serverName}
+                        <div style={{ fontSize: '11px', color: '#8b94a5' }}>{server.mcVersion}</div>
+                      </td>
+                      <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#38bdf8' }}>
+                        {server.ip}:{server.port}
+                      </td>
+                      <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#8b94a5' }}>
+                        {server.licenseKey}
+                      </td>
+                      <td style={{ padding: '14px 18px', fontWeight: '700', color: server.tps >= 19.5 ? '#10b981' : '#f59e0b' }}>
+                        {server.tps}
+                      </td>
+                      <td style={{ padding: '14px 18px', color: '#ffffff' }}>
+                        {server.onlinePlayers}
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <span className={`badge ${server.status === 'BANNED' ? 'badge-offline' : (server.isOnline ? 'badge-online' : 'badge-offline')}`}>
+                          {server.status === 'BANNED' ? 'BANNED' : (server.isOnline ? 'ONLINE' : 'OFFLINE')}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 18px', textAlign: 'right' }}>
+                        {server.status !== 'BANNED' ? (
+                          <button
+                            onClick={() => handleBanServer(server.id, server.serverName)}
+                            className="btn btn-secondary"
+                            style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)', padding: '6px 12px', fontSize: '12px' }}
+                          >
+                            Ban Server
+                          </button>
+                        ) : (
+                          <span style={{ color: '#ef4444', fontSize: '12px', fontWeight: '600' }}>REVOKED</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      {/* View 2: License Keys Management */}
+      {/* TAB 2: REGISTERED USERS (FROM SUPABASE) */}
+      {activeTab === 'users' && (
+        <div className="glass-panel" style={{ overflow: 'hidden' }}>
+          {users.length === 0 ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: '#8b94a5' }}>
+              No users registered in Supabase yet. Users register through the Client Portal.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)', color: '#8b94a5' }}>
+                    <th style={{ padding: '14px 18px' }}>Username</th>
+                    <th style={{ padding: '14px 18px' }}>Bound License Key</th>
+                    <th style={{ padding: '14px 18px' }}>Role</th>
+                    <th style={{ padding: '14px 18px' }}>Registered At</th>
+                    <th style={{ padding: '14px 18px' }}>Last Login</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(u => (
+                    <tr key={u.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '14px 18px', fontWeight: '700', color: '#ffffff' }}>
+                        👤 {u.username}
+                      </td>
+                      <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#38bdf8' }}>
+                        {u.licenseKey}
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <span className="badge badge-pending" style={{ fontSize: '11px' }}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 18px', color: '#8b94a5' }}>
+                        {new Date(u.createdAt).toLocaleDateString()}
+                      </td>
+                      <td style={{ padding: '14px 18px', color: '#8b94a5' }}>
+                        {u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: ISSUED LICENSES */}
       {activeTab === 'licenses' && (
         <div className="glass-panel" style={{ overflow: 'hidden' }}>
-          <table className="nexora-table">
-            <thead>
-              <tr>
-                <th>License Key</th>
-                <th>Owner / Buyer</th>
-                <th>Bound Server IP</th>
-                <th>Tier</th>
-                <th>Expires</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {licenses.map(lic => (
-                <tr key={lic.key}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="mono" style={{ fontWeight: '700', color: '#ff0000', fontSize: '13px' }}>
+          {licenses.length === 0 ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: '#8b94a5' }}>
+              No licenses created yet. Click "Generate New License" above to create one.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)', color: '#8b94a5' }}>
+                    <th style={{ padding: '14px 18px' }}>License Key</th>
+                    <th style={{ padding: '14px 18px' }}>Owner</th>
+                    <th style={{ padding: '14px 18px' }}>Tier</th>
+                    <th style={{ padding: '14px 18px' }}>Bound IP</th>
+                    <th style={{ padding: '14px 18px' }}>Status</th>
+                    <th style={{ padding: '14px 18px', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {licenses.map(lic => (
+                    <tr key={lic.key} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '14px 18px', fontFamily: 'monospace', fontWeight: '700', color: '#ffffff' }}>
                         {lic.key}
-                      </span>
-                      <button
-                        onClick={() => copyToClipboard(lic.key)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: copiedKey === lic.key ? '#10b981' : 'var(--text-muted)',
-                          fontSize: '12px'
-                        }}
-                        title="Copy license key to clipboard"
-                      >
-                        {copiedKey === lic.key ? '✓ Copied!' : '📋'}
-                      </button>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: '600' }}>{lic.owner}</div>
-                    {lic.email && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{lic.email}</div>}
-                  </td>
-                  <td>
-                    {lic.boundIp ? (
-                      <span className="mono" style={{ background: '#181d27', padding: '3px 7px', borderRadius: '4px', fontSize: '12px', color: '#38bdf8' }}>
-                        🔒 {lic.boundIp}
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: '12px', color: 'var(--green)', fontStyle: 'italic' }}>
-                        Unbound (Ready for first host)
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '13px', fontWeight: '600' }}>{lic.tier}</span>
-                  </td>
-                  <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                    {lic.expiresAt ? new Date(lic.expiresAt).toLocaleDateString() : 'Permanent (Lifetime)'}
-                  </td>
-                  <td>
-                    {lic.status === 'ACTIVE' ? (
-                      <span className="badge-active">ACTIVE</span>
-                    ) : (
-                      <span className="badge-banned" title={lic.banReason || 'Banned'}>
-                        {lic.status}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                        onClick={() => handleToggleLicenseStatus(lic.key, lic.status)}
-                        className="btn-secondary"
-                        style={{
-                          fontSize: '12px',
-                          padding: '4px 10px',
-                          color: lic.status === 'ACTIVE' ? '#ef4444' : '#10b981'
-                        }}
-                      >
-                        {lic.status === 'ACTIVE' ? 'Ban' : 'Unban'}
-                      </button>
-
-                      {lic.boundIp && (
                         <button
-                          onClick={() => handleResetIp(lic.key)}
-                          className="btn-secondary"
-                          style={{ fontSize: '12px', padding: '4px 10px' }}
-                          title="Unbind IP address so buyer can move hosting"
+                          onClick={() => copyToClipboard(lic.key)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            marginLeft: '8px',
+                            color: copiedKey === lic.key ? '#10b981' : '#8b94a5'
+                          }}
+                          title="Copy Key"
                         >
-                          Reset IP
+                          {copiedKey === lic.key ? '✓' : '📋'}
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      </td>
+                      <td style={{ padding: '14px 18px', color: '#c9d1d9' }}>
+                        {lic.owner}
+                        {lic.email && <div style={{ fontSize: '11px', color: '#8b94a5' }}>{lic.email}</div>}
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <span style={{ fontWeight: '600', color: '#ff4444' }}>{lic.tier}</span>
+                      </td>
+                      <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: lic.boundIp ? '#38bdf8' : '#8b94a5' }}>
+                        {lic.boundIp || 'Unbound'}
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <span className={`badge ${lic.status === 'ACTIVE' ? 'badge-online' : 'badge-offline'}`}>
+                          {lic.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 18px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          <button
+                            onClick={() => handleResetIp(lic.key)}
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            title="Reset IP lock"
+                          >
+                            Reset IP
+                          </button>
+                          <button
+                            onClick={() => handleToggleLicenseStatus(lic.key, lic.status)}
+                            className="btn btn-secondary"
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '11px',
+                              color: lic.status === 'ACTIVE' ? '#ef4444' : '#10b981',
+                              borderColor: lic.status === 'ACTIVE' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)'
+                            }}
+                          >
+                            {lic.status === 'ACTIVE' ? 'Ban' : 'Unban'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Modal for key generation */}
+      {/* License Key Generator Modal */}
       <KeyGeneratorModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onCreated={newLicense => {
-          fetchData();
-        }}
+        onCreated={() => fetchData()}
       />
     </div>
   );
