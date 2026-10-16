@@ -110,6 +110,19 @@ export default function App() {
 
   const categories = ['ALL', 'Security', 'Administration', 'Combat', 'Bundle'];
 
+  // Clean icon map — never use plugin.icon from DB (encoding is broken)
+  const CATEGORY_ICONS = {
+    security:       '🛡️',
+    administration: '⚙️',
+    combat:         '⚔️',
+    bundle:         '📦',
+    default:        '🔌',
+  };
+  const getPluginIcon = (plugin) => {
+    const key = (plugin.category || '').toLowerCase();
+    return CATEGORY_ICONS[key] || CATEGORY_ICONS.default;
+  };
+
   return (
     <div>
       {/* Top Sticky Navigation */}
@@ -352,7 +365,7 @@ export default function App() {
                   onClick={() => setSelectedPlugin(plugin)}
                 >
                   <div className="plugin-card-header">
-                    <span className="plugin-icon">{plugin.icon || '⚔️'}</span>
+                    <span className="plugin-icon">{getPluginIcon(plugin)}</span>
                     <span className="badge badge-blue">{plugin.category}</span>
                   </div>
 
