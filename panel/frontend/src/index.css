@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
 
 :root {
   --bg-primary: #050507;
@@ -433,14 +433,75 @@ body {
   border-color: #fff;
 }
 
+/* Hero Search */
+.hero-subtitle {
+  max-width: 640px;
+  margin: 0 auto 28px;
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.hero-search-wrapper {
+  max-width: 560px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.hero-search-input {
+  width: 100%;
+  padding: 13px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-bright);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.hero-search-input:focus {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.07);
+}
+
+.hero-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Category Filter Bar */
+.category-filter-bar {
+  max-width: 1300px;
+  margin: 0 auto 20px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.plugin-count-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+/* Marketplace container */
+.marketplace-container {
+  padding-top: 8px;
+}
+
 /* Plugin Grid & Cards */
 .plugin-grid {
   max-width: 1300px;
   margin: 0 auto;
   padding: 0 28px 80px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
 }
 
 .plugin-card {
@@ -462,28 +523,116 @@ body {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
 }
 
-.plugin-header {
+/* Card inner elements */
+.plugin-card-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.plugin-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+/* Stats row — flex with gap so items don't run together */
+.plugin-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
   margin-bottom: 16px;
+  margin-top: 4px;
+}
+
+.plugin-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.plugin-stat strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+.plugin-stat.mono {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* Card footer: price + action button */
+.plugin-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+  gap: 10px;
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+}
+
+.badge-blue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+}
+
+.badge-green {
+  background: rgba(0, 229, 153, 0.12);
+  color: #00e599;
+  border: 1px solid rgba(0, 229, 153, 0.25);
+}
+
+.badge-yellow {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.badge-red {
+  background: rgba(255, 51, 68, 0.12);
+  color: #ff4d5e;
+  border: 1px solid rgba(255, 51, 68, 0.25);
 }
 
 .plugin-icon {
-  width: 48px;
-  height: 48px;
-  background: #000;
+  width: 40px;
+  height: 40px;
+  background: rgba(255,255,255,0.04);
   border: 1px solid var(--border-bright);
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
+  flex-shrink: 0;
 }
 
 .plugin-price-tag {
   font-family: var(--font-mono);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   color: #fff;
 }

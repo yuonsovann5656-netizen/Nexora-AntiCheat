@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_BASE } from './apiConfig';
 import PluginDetailModal from './components/PluginDetailModal';
 import AuthModal from './components/AuthModal';
@@ -168,23 +168,20 @@ export default function App() {
           <div className="nav-actions">
             {/* Wallet Balance Pill */}
             {user && (
-              <div className="wallet-pill" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>BALANCE:</span>
+              <div className="wallet-pill">
                 <span className="wallet-balance">${Number(user.balance || 0).toFixed(2)}</span>
-                
-                {/* Verification Badge */}
                 {user.emailVerified ? (
-                  <span className="badge badge-green" style={{ fontSize: '10px', padding: '2px 8px' }}>
-                    VERIFIED Γ£ô
+                  <span className="badge badge-green" style={{ fontSize: '10px', padding: '2px 7px' }}>
+                    VERIFIED ✓
                   </span>
                 ) : (
                   <button
                     onClick={() => setShowAuthModal(true)}
                     className="badge badge-yellow"
-                    style={{ fontSize: '10px', padding: '2px 8px', cursor: 'pointer', border: '1px solid #fbbf24' }}
-                    title="Click to enter verification code"
+                    style={{ fontSize: '10px', padding: '2px 7px', cursor: 'pointer' }}
+                    title="Click to verify email"
                   >
-                    UNVERIFIED ΓÜá∩╕Å
+                    VERIFY
                   </button>
                 )}
               </div>
@@ -355,7 +352,7 @@ export default function App() {
                   onClick={() => setSelectedPlugin(plugin)}
                 >
                   <div className="plugin-card-header">
-                    <span className="plugin-icon">{plugin.icon || '≡ƒ¢í∩╕Å'}</span>
+                    <span className="plugin-icon">{plugin.icon || '⚔️'}</span>
                     <span className="badge badge-blue">{plugin.category}</span>
                   </div>
 
@@ -370,10 +367,10 @@ export default function App() {
 
                   <div className="plugin-stats-row">
                     <span className="plugin-stat">
-                      Γ¡É <strong>{plugin.rating || '5.0'}</strong>
+                      ⭐ <strong>{plugin.rating || '5.0'}</strong>
                     </span>
                     <span className="plugin-stat">
-                      Γ¼ç <strong>{plugin.downloads || 0}</strong> downloads
+                      ⬇ <strong>{plugin.downloads || 0}</strong> downloads
                     </span>
                     <span className="plugin-stat mono">
                       v{plugin.version}
@@ -381,13 +378,13 @@ export default function App() {
                   </div>
 
                   <div className="plugin-card-footer">
-                    <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span className="plugin-price-tag">
                         {isFree ? 'FREE' : `$${Number(plugin.price).toFixed(2)}`}
                       </span>
                       {isOwned && (
-                        <span className="badge badge-green" style={{ marginLeft: '8px', fontSize: '10px' }}>
-                          OWNED Γ£ô
+                        <span className="badge badge-green" style={{ fontSize: '10px' }}>
+                          OWNED ✓
                         </span>
                       )}
                     </div>
