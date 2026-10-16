@@ -1,5 +1,6 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { API_BASE } from '../apiConfig';
+import { X, Mail, Lock, Zap, CheckCircle, AlertCircle, Key, Shield } from 'lucide-react';
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   if (!isOpen) return null;
@@ -197,11 +198,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               background: 'none',
               border: 'none',
               color: '#8892a4',
-              fontSize: '18px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
-            Γ£ò
+            <X size={18} />
           </button>
         </div>
 
@@ -368,7 +371,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 borderRadius: '8px',
                 marginBottom: '18px'
               }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>Γ£ë∩╕Å</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+                  <Mail size={32} style={{ color: '#fff' }} />
+                </div>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
                   Verify Your Email
                 </div>
@@ -491,9 +496,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             fontSize: '11px',
             color: '#656e80'
           }}>
-            <span>≡ƒöÆ Encrypted with PBKDF2-SHA512</span>
-            <span>ΓÇó</span>
-            <span>ΓÜí Supabase PostgreSQL</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Lock size={12} /> Encrypted with PBKDF2-SHA512
+            </span>
+            <span>•</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Zap size={12} /> Supabase PostgreSQL
+            </span>
           </div>
 
         </div>

@@ -1,15 +1,25 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../apiConfig';
+import {
+  X, LayoutDashboard, Package, Users,
+  Download, MessageSquare, Star, Trash2,
+  CheckCircle, AlertCircle, RefreshCw, Upload,
+  Plus, Check, ArrowRight, Shield, Zap,
+  ExternalLink, Search, UserCheck, DollarSign
+} from 'lucide-react';
 
 export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
   if (!isOpen) return null;
 
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'plugins', 'users', 'downloads'
-  const [stats, setStats] = useState({ totalUsers: 0, verifiedUsers: 0, unverifiedUsers: 0, totalPlugins: 0, totalDownloads: 0 });
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'plugins', 'users', 'reviews', 'downloads'
+  const [stats, setStats] = useState({ totalUsers: 0, verifiedUsers: 0, unverifiedUsers: 0, totalPlugins: 0, totalDownloads: 0, totalReviews: 0 });
   const [plugins, setPlugins] = useState([]);
   const [users, setUsers] = useState([]);
   const [downloads, setDownloads] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [alertMsg, setAlertMsg] = useState(null);
+  const [reviewSearch, setReviewSearch] = useState('');
+  const [selectedReviewImage, setSelectedReviewImage] = useState(null);
 
   // New Plugin Form state
   const [newPluginId, setNewPluginId] = useState('');
@@ -32,8 +42,6 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
   const [uploading, setUploading] = useState(false);
 
   // Balance adjust modal/state
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [balanceAmount, setBalanceAmount] = useState(25);
   const [grantPluginId, setGrantPluginId] = useState('nexora-anticheat');
 
   useEffect(() => {
@@ -42,22 +50,26 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
 
   const fetchAdminData = async () => {
     try {
-      const [statsRes, plugRes, userRes, dlRes] = await Promise.all([
+      const [statsRes, plugRes, userRes, dlRes, revRes] = await Promise.all([
         fetch(`${API_BASE}/api/admin/stats`),
         fetch(`${API_BASE}/api/plugins`),
         fetch(`${API_BASE}/api/admin/users`),
-        fetch(`${API_BASE}/api/admin/downloads`)
+        fetch(`${API_BASE}/api/admin/downloads`),
+        fetch(`${API_BASE}/api/admin/reviews`)
       ]);
-      const [sD, pD, uD, dD] = await Promise.all([
+      const [sD, pD, uD, dD, rD] = await Promise.all([
         statsRes.json(),
         plugRes.json(),
         userRes.json(),
-        dlRes.json()
+        dlRes.json(),
+        revRes.json()
       ]);
-      setStats(sD);
+      setStats(sD || {});
       setPlugins(Array.isArray(pD) ? pD : []);
       setUsers(Array.isArray(uD) ? uD : []);
       setDownloads(Array.isArray(dD) ? dD : []);
+      setReviews(Array.isArray(rD) ? rD : []);
+
       if (pD && pD.length > 0 && !uploadPluginId) {
         setUploadPluginId(pD[0].id);
         setSelectedPluginId(pD[0].id);
@@ -167,7 +179,6 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
     }
   };
 
-  // Toggle or force verify email
   const handleToggleVerifyEmail = async (userId) => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/users/${userId}/verify`, { method: 'POST' });
@@ -181,7 +192,6 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
     }
   };
 
-  // Adjust user balance
   const handleAdjustBalance = async (userId, addAmount) => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/users/${userId}/balance`, {
@@ -199,7 +209,6 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
     }
   };
 
-  // Toggle user role
   const handleToggleRole = async (userId, currentRole) => {
     const nextRole = currentRole === 'ADMIN' ? 'USER' : 'ADMIN';
     try {
@@ -218,7 +227,6 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
     }
   };
 
-  // Grant plugin to user
   const handleGrantPlugin = async (userId, pluginId) => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/users/${userId}/grant-plugin`, {
@@ -236,7 +244,23 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
     }
   };
 
-  // Delete user account
+  const handleRevokePlugin = async (userId, pluginId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/revoke-plugin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pluginId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAlertMsg({ type: 'success', text: data.message });
+        fetchAdminData();
+      }
+    } catch {
+      setAlertMsg({ type: 'error', text: 'Failed to revoke plugin.' });
+    }
+  };
+
   const handleDeleteUser = async (userId, username) => {
     if (!window.confirm(`Are you sure you want to delete user account "${username}"?`)) return;
     try {
@@ -251,250 +275,433 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
     }
   };
 
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm('Delete this community review?')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/reviews/${reviewId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setAlertMsg({ type: 'success', text: 'Review removed and rating recalculated.' });
+        fetchAdminData();
+        if (onRefreshStore) onRefreshStore();
+      }
+    } catch {
+      setAlertMsg({ type: 'error', text: 'Failed to delete review.' });
+    }
+  };
+
+  const filteredReviews = reviews.filter(r => {
+    if (!reviewSearch.trim()) return true;
+    const q = reviewSearch.toLowerCase();
+    return (
+      (r.username || '').toLowerCase().includes(q) ||
+      (r.comment || '').toLowerCase().includes(q) ||
+      (r.pluginName || '').toLowerCase().includes(q) ||
+      (r.pluginId || '').toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '980px', width: '95%' }}>
-        
-        {/* Header with official logo */}
-        <div className="modal-header" style={{ padding: '16px 24px', borderBottom: '1px solid #1a1e29', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div
+        className="modal-card"
+        onClick={e => e.stopPropagation()}
+        style={{
+          maxWidth: '1240px',
+          width: '96%',
+          height: '88vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.95)'
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: '16px 24px',
+          borderBottom: '1px solid var(--border-subtle)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          background: 'var(--bg-secondary)'
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img src="/logo.png" alt="Nexora Logo" style={{ width: '36px', height: '36px', borderRadius: '8px' }} />
+            <img
+              src="/logo.png"
+              alt="Nexora Logo"
+              style={{ width: '38px', height: '38px', borderRadius: '8px', boxShadow: '0 0 14px rgba(255, 255, 255, 0.15)' }}
+            />
             <div>
-              <div style={{ fontSize: '16px', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>
-                NEXORA ADMINISTRATOR PANEL
+              <div style={{ fontSize: '16px', fontWeight: 800, color: '#fff', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>NEXORA ADMINISTRATOR PANEL</span>
+                <span className="badge badge-red" style={{ fontSize: '10px' }}>ROOT ACCESS</span>
               </div>
-              <div style={{ fontSize: '11px', color: '#8892a4' }}>
-                Server Local Storage ΓÇó Supabase PostgreSQL ΓÇó Zero License Lock
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                <span>Server Local Storage</span>
+                <span>•</span>
+                <span>Supabase PostgreSQL</span>
+                <span>•</span>
+                <span>Zero License Enforcement</span>
               </div>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose} style={{ fontSize: '18px', background: 'none', border: 'none', color: '#8892a4', cursor: 'pointer' }}>
-            Γ£ò
-          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              onClick={fetchAdminData}
+              className="btn btn-secondary btn-sm"
+              title="Refresh admin telemetry"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <RefreshCw size={13} />
+              <span>Refresh</span>
+            </button>
+            <button
+              className="modal-close"
+              onClick={onClose}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Tab Navigation */}
-        <div style={{ display: 'flex', background: '#090b10', borderBottom: '1px solid #1a1e29', padding: '0 24px' }}>
+        <div style={{
+          display: 'flex',
+          background: '#07090e',
+          borderBottom: '1px solid var(--border-subtle)',
+          padding: '0 24px',
+          overflowX: 'auto',
+          flexShrink: 0
+        }}>
           <button
             className={`modal-tab ${activeTab === 'overview' ? 'active' : ''}`}
             onClick={() => { setActiveTab('overview'); setAlertMsg(null); }}
-            style={{ padding: '14px 20px', border: 'none', background: 'none', color: activeTab === 'overview' ? '#fff' : '#8892a4', fontWeight: 600, borderBottom: activeTab === 'overview' ? '2px solid #fff' : '2px solid transparent', cursor: 'pointer' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            ≡ƒôè Fleet Overview
+            <LayoutDashboard size={15} />
+            <span>Overview</span>
           </button>
           <button
             className={`modal-tab ${activeTab === 'plugins' ? 'active' : ''}`}
             onClick={() => { setActiveTab('plugins'); setAlertMsg(null); }}
-            style={{ padding: '14px 20px', border: 'none', background: 'none', color: activeTab === 'plugins' ? '#fff' : '#8892a4', fontWeight: 600, borderBottom: activeTab === 'plugins' ? '2px solid #fff' : '2px solid transparent', cursor: 'pointer' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            ≡ƒôª Plugin Hosting & Upload
+            <Package size={15} />
+            <span>Plugin Hosting & Upload</span>
           </button>
           <button
             className={`modal-tab ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => { setActiveTab('users'); setAlertMsg(null); }}
-            style={{ padding: '14px 20px', border: 'none', background: 'none', color: activeTab === 'users' ? '#fff' : '#8892a4', fontWeight: 600, borderBottom: activeTab === 'users' ? '2px solid #fff' : '2px solid transparent', cursor: 'pointer' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            ≡ƒæÑ User Accounts & Verification ({users.length})
+            <Users size={15} />
+            <span>User Accounts ({users.length})</span>
+          </button>
+          <button
+            className={`modal-tab ${activeTab === 'reviews' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('reviews'); setAlertMsg(null); }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+          >
+            <MessageSquare size={15} />
+            <span>Real Reviews & Feedback ({reviews.length})</span>
           </button>
           <button
             className={`modal-tab ${activeTab === 'downloads' ? 'active' : ''}`}
             onClick={() => { setActiveTab('downloads'); setAlertMsg(null); }}
-            style={{ padding: '14px 20px', border: 'none', background: 'none', color: activeTab === 'downloads' ? '#fff' : '#8892a4', fontWeight: 600, borderBottom: activeTab === 'downloads' ? '2px solid #fff' : '2px solid transparent', cursor: 'pointer' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            ≡ƒôÑ Download Audit Logs ({downloads.length})
+            <Download size={15} />
+            <span>Download Audit Logs ({downloads.length})</span>
           </button>
         </div>
 
-        <div className="modal-body" style={{ padding: '24px', maxHeight: '72vh', overflowY: 'auto' }}>
+        {/* Modal Scrollable Body */}
+        <div className="modal-body" style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
           
           {alertMsg && (
             <div style={{
               padding: '12px 16px',
-              borderRadius: '6px',
+              borderRadius: '8px',
               marginBottom: '20px',
               fontSize: '13px',
-              background: alertMsg.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 51, 68, 0.12)',
-              color: alertMsg.type === 'success' ? '#34d399' : '#ff4d5e',
-              border: `1px solid ${alertMsg.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 51, 68, 0.3)'}`
+              background: alertMsg.type === 'success' ? 'rgba(0, 229, 153, 0.12)' : 'rgba(255, 51, 68, 0.12)',
+              color: alertMsg.type === 'success' ? '#00e599' : '#ff4d5e',
+              border: `1px solid ${alertMsg.type === 'success' ? 'rgba(0, 229, 153, 0.3)' : 'rgba(255, 51, 68, 0.3)'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
             }}>
-              {alertMsg.text}
+              <span>{alertMsg.text}</span>
+              <button
+                onClick={() => setAlertMsg(null)}
+                style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+              >
+                <X size={14} />
+              </button>
             </div>
           )}
 
           {/* TAB 1: FLEET OVERVIEW */}
           {activeTab === 'overview' && (
             <div>
-              <div className="stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-                <div className="stat-card" style={{ background: '#0e1017', border: '1px solid #1a1e29', padding: '18px', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '12px', color: '#8892a4', marginBottom: '6px' }}>TOTAL USERS</div>
-                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#fff' }}>{stats.totalUsers || 0}</div>
-                  <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px' }}>
-                    Γ£ô {stats.verifiedUsers || 0} Verified
+              <div className="stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div className="stat-card">
+                  <div className="stat-lbl">Registered Users</div>
+                  <div className="stat-val">{stats.totalUsers || 0}</div>
+                  <div style={{ fontSize: '11px', color: '#00e599', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle size={12} />
+                    <span>{stats.verifiedUsers || 0} Verified</span>
                   </div>
                 </div>
 
-                <div className="stat-card" style={{ background: '#0e1017', border: '1px solid #1a1e29', padding: '18px', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '12px', color: '#8892a4', marginBottom: '6px' }}>VERIFICATION PENDING</div>
-                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#fbbf24' }}>{stats.unverifiedUsers || 0}</div>
-                  <div style={{ fontSize: '11px', color: '#8892a4', marginTop: '4px' }}>Awaiting email check</div>
+                <div className="stat-card">
+                  <div className="stat-lbl">Pending Verification</div>
+                  <div className="stat-val" style={{ color: '#fbbf24' }}>{stats.unverifiedUsers || 0}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertCircle size={12} />
+                    <span>Awaiting email check</span>
+                  </div>
                 </div>
 
-                <div className="stat-card" style={{ background: '#0e1017', border: '1px solid #1a1e29', padding: '18px', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '12px', color: '#8892a4', marginBottom: '6px' }}>TOTAL PLUGINS</div>
-                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#fff' }}>{stats.totalPlugins || 0}</div>
-                  <div style={{ fontSize: '11px', color: '#8892a4', marginTop: '4px' }}>Hosted on disk</div>
+                <div className="stat-card">
+                  <div className="stat-lbl">Active Store Plugins</div>
+                  <div className="stat-val">{stats.totalPlugins || 0}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    Hosted in server local storage
+                  </div>
                 </div>
 
-                <div className="stat-card" style={{ background: '#0e1017', border: '1px solid #1a1e29', padding: '18px', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '12px', color: '#8892a4', marginBottom: '6px' }}>UNIQUE DOWNLOADS</div>
-                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#fff' }}>{stats.totalDownloads || 0}</div>
-                  <div style={{ fontSize: '11px', color: '#8892a4', marginTop: '4px' }}>Per-account deduplicated</div>
+                <div className="stat-card">
+                  <div className="stat-lbl">Real Unique Downloads</div>
+                  <div className="stat-val">{stats.totalDownloads || 0}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    1 account per file counted
+                  </div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-lbl">Community Reviews</div>
+                  <div className="stat-val" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>{reviews.length}</span>
+                    <Star size={18} fill="currentColor" style={{ color: '#facc15' }} />
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    Real player feedback & telemetry
+                  </div>
                 </div>
               </div>
 
-              {/* Supabase status block */}
-              <div style={{
-                background: '#0e1017',
-                border: '1px solid #1a1e29',
-                borderRadius: '8px',
-                padding: '18px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ fontSize: '24px' }}>ΓÜí</div>
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>
-                      Supabase Cloud Database & Authentication
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#8892a4' }}>
-                      Realtime synchronization active with automatic schema migration and PBKDF2 encryption.
-                    </div>
-                  </div>
+              {/* Per-Plugin Real Downloads Overview */}
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px', marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '14px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Download size={16} />
+                  <span>Real Unique Downloads Per Plugin</span>
+                </h3>
+
+                <div className="table-container">
+                  <table className="tech-table">
+                    <thead>
+                      <tr>
+                        <th>Plugin Name</th>
+                        <th>Category</th>
+                        <th>Version</th>
+                        <th>Unique Account Downloads</th>
+                        <th>Pricing</th>
+                        <th>Direct Download Endpoint</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {plugins.map(p => (
+                        <tr key={p.id}>
+                          <td style={{ fontWeight: 700, color: '#fff' }}>{p.name}</td>
+                          <td><span className="badge badge-blue">{p.category}</span></td>
+                          <td className="mono">v{p.version}</td>
+                          <td>
+                            <span style={{ fontWeight: 800, color: '#00e599', fontFamily: 'var(--font-mono)', fontSize: '14px' }}>
+                              {p.downloads || 0}
+                            </span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>accounts</span>
+                          </td>
+                          <td className="mono">{Number(p.price) === 0 ? 'FREE' : `$${Number(p.price).toFixed(2)}`}</td>
+                          <td>
+                            <code style={{ fontSize: '11px', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                              /api/plugins/{p.id}/download
+                            </code>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <span className="badge badge-green" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)', padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 700 }}>
-                  CONNECTED
-                </span>
+              </div>
+
+              {/* Security & System Info */}
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px' }}>
+                <h3 style={{ fontSize: '14px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: '#fff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Shield size={16} />
+                  <span>Deployment Architecture & Local Storage Protection</span>
+                </h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '12px' }}>
+                  All plugin binaries are stored directly on the server's private disk (`storage/plugins/`). When users click Download, files are streamed directly via secure Node.js streams without exposing your GitHub repository or private commit history.
+                </p>
+                <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <span>Binary Directory: storage/plugins/</span>
+                  <span>•</span>
+                  <span>Database: Supabase PostgreSQL (Auto-Sync)</span>
+                  <span>•</span>
+                  <span>Auth Security: Salted PBKDF2</span>
+                </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: PLUGIN HOSTING & JAR UPLOAD */}
+          {/* TAB 2: PLUGINS & JAR UPLOAD */}
           {activeTab === 'plugins' && (
             <div>
-              {/* Direct JAR Upload Block */}
-              <div style={{
-                background: '#0e1017',
-                border: '1px solid #1a1e29',
-                borderRadius: '8px',
-                padding: '20px',
-                marginBottom: '24px'
-              }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-                  UPLOAD .JAR BINARY (SERVER STORAGE)
-                </div>
-                <div style={{ fontSize: '12px', color: '#8892a4', marginBottom: '16px' }}>
-                  Upload binaries directly to server private storage (<code style={{ color: '#fff' }}>storage/plugins/</code>). Completely avoids GitHub repository and release links.
-                </div>
+              {/* JAR Binary Uploader */}
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px', marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '14px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: '#fff', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Upload size={16} />
+                  <span>Upload Local Plugin Binary (.jar)</span>
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                  Directly upload compiled JAR artifacts to private disk storage. Replaces the file served when users download this plugin.
+                </p>
 
-                <form onSubmit={handleUploadJar} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1', minWidth: '220px' }}>
-                    <label className="form-label">Select Plugin</label>
+                <form onSubmit={handleUploadJar} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: '12px', alignItems: 'flex-end' }}>
+                  <div>
+                    <label className="form-label">Target Plugin</label>
                     <select
                       className="input-field"
                       value={uploadPluginId}
                       onChange={e => setUploadPluginId(e.target.value)}
-                      required
                     >
                       {plugins.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.id})
-                        </option>
+                        <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
                       ))}
                     </select>
                   </div>
 
-                  <div style={{ flex: '2', minWidth: '240px' }}>
-                    <label className="form-label">Choose .jar File</label>
+                  <div>
+                    <label className="form-label">Select .jar File from Computer</label>
                     <input
                       type="file"
                       accept=".jar,.zip"
                       className="input-field"
+                      style={{ padding: '7px 12px' }}
                       onChange={e => setUploadFile(e.target.files[0])}
-                      required
                     />
                   </div>
 
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    disabled={uploading}
-                    style={{ height: '42px', padding: '0 24px', fontWeight: 700 }}
+                    disabled={uploading || !uploadFile}
+                    style={{ height: '42px', marginBottom: '12px' }}
                   >
-                    {uploading ? 'Uploading to Server...' : 'Upload .JAR'}
+                    {uploading ? 'Uploading...' : 'Save to Server Disk'}
                   </button>
                 </form>
               </div>
 
-              {/* Published Plugins Table */}
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>
-                CURRENT STORE CATALOG ({plugins.length})
-              </div>
-              <div style={{ overflowX: 'auto', marginBottom: '24px' }}>
-                <table className="nexora-table">
-                  <thead>
-                    <tr>
-                      <th>Plugin</th>
-                      <th>Category</th>
-                      <th>Version</th>
-                      <th>Price</th>
-                      <th>Downloads</th>
-                      <th>Storage Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {plugins.map(p => (
-                      <tr key={p.id}>
-                        <td>
-                          <div style={{ fontWeight: 700, color: '#fff' }}>{p.name}</div>
-                          <div style={{ fontSize: '11px', color: '#8892a4' }}>{p.id}</div>
-                        </td>
-                        <td>
-                          <span className="badge badge-blue">{p.category}</span>
-                        </td>
-                        <td className="mono">{p.version}</td>
-                        <td className="mono" style={{ color: '#fff', fontWeight: 700 }}>
-                          ${Number(p.price || 0).toFixed(2)}
-                        </td>
-                        <td className="mono" style={{ color: '#fff' }}>{p.downloads || 0}</td>
-                        <td>
-                          <span className="badge badge-green">LOCAL DISK</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {/* Create Plugin Form */}
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px', marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '14px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Plus size={16} />
+                  <span>Register New Plugin into Store Catalog</span>
+                </h3>
+
+                <form onSubmit={handleCreatePlugin}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                    <div>
+                      <label className="form-label">Plugin ID (slug)</label>
+                      <input
+                        className="input-field mono"
+                        placeholder="e.g. nexora-dupe-fixer"
+                        value={newPluginId}
+                        onChange={e => setNewPluginId(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Display Name</label>
+                      <input
+                        className="input-field"
+                        placeholder="e.g. Nexora Dupe Fixer"
+                        value={newPluginName}
+                        onChange={e => setNewPluginName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Category</label>
+                      <select
+                        className="input-field"
+                        value={newPluginCategory}
+                        onChange={e => setNewPluginCategory(e.target.value)}
+                      >
+                        <option value="Security">Security</option>
+                        <option value="Combat">Combat</option>
+                        <option value="Administration">Administration</option>
+                        <option value="Bundle">Bundle</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="form-label">Price (USD)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="input-field mono"
+                        value={newPluginPrice}
+                        onChange={e => setNewPluginPrice(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Version</label>
+                      <input
+                        className="input-field mono"
+                        value={newPluginVersion}
+                        onChange={e => setNewPluginVersion(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '12px' }}>
+                    <label className="form-label">Short Tagline</label>
+                    <input
+                      className="input-field"
+                      placeholder="One sentence description for the store card"
+                      value={newPluginTagline}
+                      onChange={e => setNewPluginTagline(e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label className="form-label">Full Description</label>
+                    <textarea
+                      className="input-field"
+                      style={{ minHeight: '80px' }}
+                      placeholder="Detailed features, Folia support, permissions, commands..."
+                      value={newPluginDesc}
+                      onChange={e => setNewPluginDesc(e.target.value)}
+                    />
+                  </div>
+
+                  <button type="submit" className="btn btn-primary btn-sm">
+                    Create Plugin Entry
+                  </button>
+                </form>
               </div>
 
-              {/* Add Changelog Form */}
-              <div style={{
-                background: '#0e1017',
-                border: '1px solid #1a1e29',
-                borderRadius: '8px',
-                padding: '20px',
-                marginBottom: '24px'
-              }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-                  PUBLISH UPDATE CHANGELOG
-                </div>
-                <div style={{ fontSize: '12px', color: '#8892a4', marginBottom: '16px' }}>
-                  Adds an update notification to the user navbar bell and modal history.
-                </div>
+              {/* Publish Changelog */}
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px' }}>
+                <h3 style={{ fontSize: '14px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Zap size={16} />
+                  <span>Publish New Changelog & Release Announcement</span>
+                </h3>
 
                 <form onSubmit={handleAddChangelog}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '12px', marginBottom: '12px' }}>
                     <div>
                       <label className="form-label">Plugin</label>
                       <select
@@ -508,257 +715,132 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
                       </select>
                     </div>
                     <div>
-                      <label className="form-label">Version</label>
+                      <label className="form-label">Release Version</label>
                       <input
-                        type="text"
                         className="input-field mono"
-                        placeholder="1.0.1"
+                        placeholder="e.g. 1.3.1"
                         value={newChangelogVersion}
                         onChange={e => setNewChangelogVersion(e.target.value)}
-                        required
                       />
                     </div>
                     <div>
-                      <label className="form-label">Title / Release Headline</label>
+                      <label className="form-label">Release Title</label>
                       <input
-                        type="text"
                         className="input-field"
-                        placeholder="e.g. Heuristic Optimization"
+                        placeholder="e.g. Folia 1.21.4 Compatibility Patch"
                         value={newChangelogTitle}
                         onChange={e => setNewChangelogTitle(e.target.value)}
-                        required
                       />
                     </div>
                   </div>
 
-                  <div style={{ marginBottom: '14px' }}>
-                    <label className="form-label">Release Notes (One item per line)</label>
+                  <div style={{ marginBottom: '16px' }}>
+                    <label className="form-label">Release Notes (one bullet per line)</label>
                     <textarea
-                      className="input-field mono"
-                      rows={3}
-                      placeholder="- Added Folia async packet pipeline&#10;- Fixed Reach raytrace false-positive on ping spike"
+                      className="input-field"
+                      style={{ minHeight: '80px' }}
+                      placeholder="Fixed False Positive on Elytra glide&#10;Added Paper Folia region scheduler&#10;Reduced memory footprint by 15%"
                       value={newChangelogNotes}
                       onChange={e => setNewChangelogNotes(e.target.value)}
-                      required
                     />
                   </div>
 
-                  <button type="submit" className="btn btn-secondary" style={{ fontWeight: 600 }}>
-                    Publish Changelog
-                  </button>
-                </form>
-              </div>
-
-              {/* Add New Plugin Form */}
-              <div style={{
-                background: '#0e1017',
-                border: '1px solid #1a1e29',
-                borderRadius: '8px',
-                padding: '20px'
-              }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-                  CREATE NEW PLUGIN PRODUCT
-                </div>
-                <form onSubmit={handleCreatePlugin}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
-                    <div>
-                      <label className="form-label">Plugin ID</label>
-                      <input
-                        type="text"
-                        className="input-field mono"
-                        placeholder="nexora-exploit-guard"
-                        value={newPluginId}
-                        onChange={e => setNewPluginId(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label">Display Name</label>
-                      <input
-                        type="text"
-                        className="input-field"
-                        placeholder="Nexora ExploitGuard"
-                        value={newPluginName}
-                        onChange={e => setNewPluginName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label">Category</label>
-                      <select
-                        className="input-field"
-                        value={newPluginCategory}
-                        onChange={e => setNewPluginCategory(e.target.value)}
-                      >
-                        <option value="Security">Security</option>
-                        <option value="Administration">Administration</option>
-                        <option value="Combat">Combat</option>
-                        <option value="Utility">Utility</option>
-                        <option value="Bundle">Bundle</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="form-label">Price (USD)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="input-field mono"
-                        value={newPluginPrice}
-                        onChange={e => setNewPluginPrice(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: '12px' }}>
-                    <label className="form-label">Tagline</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="High-Performance Crash & Exploit Mitigator"
-                      value={newPluginTagline}
-                      onChange={e => setNewPluginTagline(e.target.value)}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: '14px' }}>
-                    <label className="form-label">Description</label>
-                    <textarea
-                      className="input-field"
-                      rows={2}
-                      placeholder="Detailed features, Folia support, permissions..."
-                      value={newPluginDesc}
-                      onChange={e => setNewPluginDesc(e.target.value)}
-                    />
-                  </div>
-
-                  <button type="submit" className="btn btn-primary">
-                    Create Plugin Entry
+                  <button type="submit" className="btn btn-primary btn-sm">
+                    Publish Release & Push Notification
                   </button>
                 </form>
               </div>
             </div>
           )}
 
-          {/* TAB 3: USER ACCOUNTS & EMAIL VERIFICATION */}
+          {/* TAB 3: USER ACCOUNTS & VERIFICATION */}
           {activeTab === 'users' && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>
-                    REGISTERED USERS & VERIFICATION GATE
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#8892a4' }}>
-                    Manage user roles, verify emails with 1-click, top up wallet balances, or grant plugin access.
-                  </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Total registered accounts: <strong style={{ color: '#fff' }}>{users.length}</strong> (Verified: <strong style={{ color: '#00e599' }}>{users.filter(u => u.emailVerified).length}</strong>)
                 </div>
-                <button className="btn btn-secondary" onClick={fetchAdminData} style={{ fontSize: '12px' }}>
-                  Γå╗ Refresh
-                </button>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table className="nexora-table">
+              <div className="table-container">
+                <table className="tech-table">
                   <thead>
                     <tr>
                       <th>User</th>
-                      <th>Email & Status</th>
+                      <th>Email</th>
+                      <th>Verification</th>
                       <th>Role</th>
                       <th>Balance</th>
-                      <th>Owned Plugins</th>
+                      <th>Library</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {users.map(u => (
                       <tr key={u.id}>
+                        <td style={{ fontWeight: 700, color: '#fff' }}>{u.username}</td>
+                        <td className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email || '—'}</td>
                         <td>
-                          <div style={{ fontWeight: 700, color: '#fff' }}>{u.username}</div>
-                          <div style={{ fontSize: '10px', color: '#656e80' }}>ID: {u.id}</div>
-                        </td>
-                        <td>
-                          <div style={{ fontSize: '13px', color: '#fff', marginBottom: '4px' }}>
-                            {u.email || '<No Email>'}
-                          </div>
                           {u.emailVerified ? (
-                            <span className="badge badge-green" style={{ fontSize: '10px', padding: '2px 8px' }}>
-                              VERIFIED Γ£ô
+                            <span className="badge badge-green" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle size={11} /> VERIFIED
                             </span>
                           ) : (
-                            <span className="badge badge-yellow" style={{ fontSize: '10px', padding: '2px 8px' }}>
-                              UNVERIFIED ΓÜá∩╕Å
+                            <span className="badge badge-yellow" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <AlertCircle size={11} /> UNVERIFIED
                             </span>
                           )}
                         </td>
                         <td>
-                          <span className={`badge ${u.role === 'ADMIN' ? 'badge-red' : 'badge-blue'}`}>
+                          <button
+                            onClick={() => handleToggleRole(u.id, u.role)}
+                            className={`badge ${u.role === 'ADMIN' ? 'badge-red' : 'badge-blue'}`}
+                            style={{ cursor: 'pointer', border: 'none' }}
+                            title="Click to toggle role"
+                          >
                             {u.role}
-                          </span>
+                          </button>
                         </td>
-                        <td className="mono" style={{ color: '#fff', fontWeight: 700 }}>
+                        <td className="mono" style={{ fontWeight: 700 }}>
                           ${Number(u.balance || 0).toFixed(2)}
                         </td>
                         <td>
-                          <span style={{ fontSize: '12px', color: '#8892a4' }}>
-                            {(u.purchasedPlugins || []).length} plugins
+                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            {(u.purchasedPlugins || []).length} owned
                           </span>
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                            {/* Toggle email verification */}
                             <button
-                              className="btn btn-secondary"
                               onClick={() => handleToggleVerifyEmail(u.id)}
-                              style={{
-                                fontSize: '11px',
-                                padding: '4px 8px',
-                                borderColor: u.emailVerified ? '#333' : '#10b981',
-                                color: u.emailVerified ? '#8892a4' : '#34d399'
-                              }}
-                              title="Toggle Email Verification"
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '11px', padding: '3px 8px' }}
                             >
-                              {u.emailVerified ? 'Unverify' : 'Γ£ô Verify'}
+                              {u.emailVerified ? 'Unverify' : 'Verify'}
                             </button>
-
-                            {/* Add balance */}
                             <button
-                              className="btn btn-secondary"
-                              onClick={() => handleAdjustBalance(u.id, 25.00)}
-                              style={{ fontSize: '11px', padding: '4px 8px' }}
-                              title="Add $25 to user balance"
+                              onClick={() => handleAdjustBalance(u.id, 25)}
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '11px', padding: '3px 8px' }}
+                              title="Add $25 to balance"
                             >
                               +$25
                             </button>
-
-                            {/* Grant AntiCheat plugin */}
                             <button
-                              className="btn btn-secondary"
-                              onClick={() => handleGrantPlugin(u.id, 'nexora-anticheat')}
-                              style={{ fontSize: '11px', padding: '4px 8px' }}
-                              title="Grant AntiCheat plugin"
+                              onClick={() => handleGrantPlugin(u.id, grantPluginId)}
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '11px', padding: '3px 8px' }}
+                              title={`Grant ${grantPluginId}`}
                             >
-                              +AntiCheat
+                              Grant AntiCheat
                             </button>
-
-                            {/* Toggle Admin role */}
-                            {u.username.toLowerCase() !== 'admin' && (
+                            {u.username !== 'admin' && (
                               <button
-                                className="btn btn-secondary"
-                                onClick={() => handleToggleRole(u.id, u.role)}
-                                style={{ fontSize: '11px', padding: '4px 8px' }}
-                              >
-                                {u.role === 'ADMIN' ? 'Demote' : 'Make Admin'}
-                              </button>
-                            )}
-
-                            {/* Delete User */}
-                            {u.username.toLowerCase() !== 'admin' && (
-                              <button
-                                className="btn btn-danger"
                                 onClick={() => handleDeleteUser(u.id, u.username)}
-                                style={{ fontSize: '11px', padding: '4px 8px' }}
+                                className="btn btn-danger btn-sm"
+                                style={{ fontSize: '11px', padding: '3px 8px' }}
                               >
-                                Γ£ò
+                                <Trash2 size={12} />
                               </button>
                             )}
                           </div>
@@ -771,41 +853,187 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
             </div>
           )}
 
-          {/* TAB 4: DOWNLOAD AUDIT LOGS */}
+          {/* TAB 4: REAL REVIEWS & COMMUNITY FEEDBACK */}
+          {activeTab === 'reviews' && (
+            <div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '20px',
+                gap: '12px',
+                flexWrap: 'wrap'
+              }}>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
+                    Community Reviews & Telemetry Feedback
+                  </h3>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Real ratings, feedback comments, and proof screenshots submitted by players and server owners.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="Search reviews by user or plugin..."
+                      value={reviewSearch}
+                      onChange={e => setReviewSearch(e.target.value)}
+                      style={{ paddingLeft: '32px', marginBottom: 0, minWidth: '260px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {filteredReviews.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+                  <MessageSquare size={36} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>No Reviews Found</div>
+                  <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                    Reviews posted by customers via the plugin detail page will appear here.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
+                  {filteredReviews.map(r => (
+                    <div
+                      key={r.id}
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '10px',
+                        padding: '18px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <div>
+                        {/* Header: User + Plugin Badge */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '10px' }}>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{r.username}</div>
+                            <span className="badge badge-blue" style={{ fontSize: '10px', marginTop: '4px' }}>
+                              {r.pluginName || r.pluginId}
+                            </span>
+                          </div>
+                          
+                          <button
+                            onClick={() => handleDeleteReview(r.id)}
+                            className="btn btn-danger btn-sm"
+                            style={{ padding: '4px 8px' }}
+                            title="Delete / Moderate Review"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+
+                        {/* Star Rating */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '10px' }}>
+                          {[1, 2, 3, 4, 5].map(s => (
+                            <Star
+                              key={s}
+                              size={14}
+                              fill={s <= r.rating ? '#facc15' : 'none'}
+                              style={{ color: s <= r.rating ? '#facc15' : '#374151' }}
+                            />
+                          ))}
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px', fontFamily: 'var(--font-mono)' }}>
+                            {r.rating}.0 / 5.0
+                          </span>
+                        </div>
+
+                        {/* Comment text */}
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '12px' }}>
+                          "{r.comment}"
+                        </p>
+
+                        {/* Attached Image Thumbnail */}
+                        {r.imageUrl && (
+                          <div style={{ marginBottom: '12px' }}>
+                            <img
+                              src={r.imageUrl}
+                              alt="Review proof"
+                              onClick={() => setSelectedReviewImage(r.imageUrl)}
+                              style={{
+                                width: '100%',
+                                maxHeight: '140px',
+                                objectFit: 'cover',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border-bright)',
+                                cursor: 'pointer'
+                              }}
+                            />
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', textAlign: 'right' }}>
+                              Click image to enlarge
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{
+                        paddingTop: '10px',
+                        borderTop: '1px solid var(--border-subtle)',
+                        fontSize: '11px',
+                        color: 'var(--text-muted)',
+                        fontFamily: 'var(--font-mono)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}>
+                        <span>{new Date(r.createdAt || Date.now()).toLocaleDateString()}</span>
+                        <span style={{ color: '#00e599' }}>Verified Customer</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 5: DOWNLOAD AUDIT LOGS */}
           {activeTab === 'downloads' && (
             <div>
-              <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-                UNIQUE DOWNLOAD AUDIT TRAIL
-              </div>
-              <div style={{ fontSize: '12px', color: '#8892a4', marginBottom: '16px' }}>
-                Every download is uniquely deduplicated per user account per plugin file.
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Total logged downloads: <strong style={{ color: '#fff' }}>{downloads.length}</strong>
+                </div>
               </div>
 
               {downloads.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#8892a4', background: '#0e1017', borderRadius: '8px' }}>
-                  No downloads recorded yet in this session.
+                <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
+                  No download events recorded yet.
                 </div>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="nexora-table">
+                <div className="table-container">
+                  <table className="tech-table">
                     <thead>
                       <tr>
-                        <th>Account</th>
-                        <th>Plugin ID</th>
-                        <th>IP Address</th>
-                        <th>Date & Time</th>
+                        <th>Timestamp</th>
+                        <th>Plugin</th>
+                        <th>User Account / IP</th>
+                        <th>Client IP</th>
+                        <th>User Agent</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {downloads.map((d, idx) => (
-                        <tr key={idx}>
-                          <td className="mono" style={{ color: '#fff', fontWeight: 700 }}>{d.account}</td>
+                      {downloads.map(d => (
+                        <tr key={d.id}>
+                          <td className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            {new Date(d.timestamp).toLocaleString()}
+                          </td>
                           <td>
                             <span className="badge badge-blue">{d.pluginId}</span>
                           </td>
-                          <td className="mono" style={{ color: '#8892a4' }}>{d.ip}</td>
-                          <td style={{ color: '#8892a4', fontSize: '12px' }}>
-                            {new Date(d.timestamp).toLocaleString()}
+                          <td style={{ fontWeight: 600, color: '#fff' }}>
+                            {d.account ? d.account.replace(/^user_/, '@') : 'anonymous'}
+                          </td>
+                          <td className="mono" style={{ fontSize: '12px' }}>{d.ip}</td>
+                          <td style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {d.userAgent}
                           </td>
                         </tr>
                       ))}
@@ -817,6 +1045,22 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
           )}
 
         </div>
+
+        {/* Lightbox for review screenshots */}
+        {selectedReviewImage && (
+          <div
+            className="lightbox-overlay"
+            onClick={() => setSelectedReviewImage(null)}
+            style={{ zIndex: 3000 }}
+          >
+            <img
+              src={selectedReviewImage}
+              alt="Enlarged screenshot"
+              className="lightbox-img"
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

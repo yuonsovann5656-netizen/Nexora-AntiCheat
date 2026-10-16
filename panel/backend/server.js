@@ -796,6 +796,58 @@ app.get('/api/admin/downloads', (req, res) => {
 });
 
 /**
+ * Admin list all reviews across all plugins
+ * GET /api/admin/reviews
+ */
+app.get('/api/admin/reviews', (req, res) => {
+  const data = readData();
+  const plugins = data.plugins || [];
+  const reviews = (data.reviews || []).map(r => {
+    const plugin = plugins.find(p => p.id === r.pluginId);
+    return {
+      ...r,
+      pluginName: plugin ? plugin.name : r.pluginId,
+      pluginCategory: plugin ? plugin.category : 'General'
+    };
+  });
+  res.json(reviews);
+});
+
+/**
+ * Admin delete/moderate a review
+ * DELETE /api/admin/reviews/:id
+ */
+app.delete('/api/admin/reviews/:id', (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  data.reviews = data.reviews || [];
+  
+  const targetIndex = data.reviews.findIndex(r => r.id === id);
+  if (targetIndex === -1) {
+    return res.status(404).json({ error: 'Review not found.' });
+  }
+
+  const removed = data.reviews.splice(targetIndex, 1)[0];
+
+  // Recalculate average rating for the affected plugin
+  if (removed && removed.pluginId) {
+    const plugin = (data.plugins || []).find(p => p.id === removed.pluginId);
+    if (plugin) {
+      const remainingReviews = data.reviews.filter(r => r.pluginId === removed.pluginId);
+      if (remainingReviews.length > 0) {
+        const avg = remainingReviews.reduce((sum, r) => sum + r.rating, 0) / remainingReviews.length;
+        plugin.rating = Math.round(avg * 10) / 10;
+      } else {
+        plugin.rating = 5.0;
+      }
+    }
+  }
+
+  writeData(data);
+  res.json({ success: true, message: 'Review successfully removed.' });
+});
+
+/**
  * Admin add or update a plugin
  * POST /api/admin/plugins
  */

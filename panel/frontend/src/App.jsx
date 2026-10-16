@@ -337,7 +337,9 @@ export default function App() {
         {/* Plugin Grid */}
         {filteredPlugins.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">≡ƒôª</div>
+            <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+              <Package size={40} style={{ color: 'var(--text-muted)' }} />
+            </div>
             <div className="empty-state-title">No Plugins Found</div>
             <div className="empty-state-desc">
               {viewFilter === 'MY_LIBRARY'
@@ -400,8 +402,8 @@ export default function App() {
                         {isFree ? 'FREE' : `$${Number(plugin.price).toFixed(2)}`}
                       </span>
                       {isOwned && (
-                        <span className="badge badge-green" style={{ fontSize: '10px' }}>
-                          OWNED ✓
+                        <span className="badge badge-green" style={{ fontSize: '10px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <CheckCircle size={10} /> OWNED
                         </span>
                       )}
                     </div>

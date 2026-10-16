@@ -1,5 +1,23 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../apiConfig';
+import {
+  X, Star, Download, Camera, Check,
+  AlertTriangle, Shield, Sword, Settings,
+  Package, Plug
+} from 'lucide-react';
+
+const CATEGORY_ICONS = {
+  security:       <Shield size={24} />,
+  administration: <Settings size={24} />,
+  combat:         <Sword size={24} />,
+  bundle:         <Package size={24} />,
+  default:        <Plug size={24} />,
+};
+
+function getCategoryIcon(cat) {
+  const key = (cat || '').toLowerCase();
+  return CATEGORY_ICONS[key] || CATEGORY_ICONS.default;
+}
 
 export default function PluginDetailModal({
   plugin,
@@ -58,9 +76,15 @@ export default function PluginDetailModal({
       setAlertMsg({ type: 'error', text: 'Please sign in to post a review.' });
       return;
     }
-    if (!newComment.trim()) return;
+
+    if (!newComment.trim()) {
+      setAlertMsg({ type: 'error', text: 'Please enter a review comment.' });
+      return;
+    }
 
     setSubmittingReview(true);
+    setAlertMsg(null);
+
     try {
       const res = await fetch(`${API_BASE}/api/plugins/${plugin.id}/reviews`, {
         method: 'POST',
@@ -68,20 +92,22 @@ export default function PluginDetailModal({
         body: JSON.stringify({
           username: user.username,
           rating: newRating,
-          comment: newComment,
+          comment: newComment.trim(),
           imageUrl: reviewImage
         })
       });
+
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
+        setAlertMsg({ type: 'success', text: 'Review published successfully!' });
         setNewComment('');
         setReviewImage('');
         fetchReviews();
-        setAlertMsg({ type: 'success', text: 'Review published successfully!' });
-        setTimeout(() => setAlertMsg(null), 3000);
+      } else {
+        setAlertMsg({ type: 'error', text: data.error || 'Failed to submit review.' });
       }
     } catch {
-      setAlertMsg({ type: 'error', text: 'Failed to post review.' });
+      setAlertMsg({ type: 'error', text: 'Network error submitting review.' });
     } finally {
       setSubmittingReview(false);
     }
@@ -94,34 +120,39 @@ export default function PluginDetailModal({
     }
 
     if (!isVerified) {
-      setAlertMsg({ type: 'error', text: 'Please verify your email address to unlock purchasing and downloads.' });
-      onOpenAuth();
-      return;
-    }
-
-    if (user.balance < plugin.price) {
-      setAlertMsg({ type: 'error', text: `Insufficient balance ($${Number(user.balance || 0).toFixed(2)}). Please contact an administrator to top up your account.` });
+      setAlertMsg({
+        type: 'error',
+        text: 'Your email address is not verified yet. Please click your account badge to verify before purchasing or downloading plugins.'
+      });
       return;
     }
 
     setBuying(true);
     setAlertMsg(null);
+
     try {
       const res = await fetch(`${API_BASE}/api/plugins/${plugin.id}/buy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user.username })
       });
+
       const data = await res.json();
-      if (data.success) {
-        setAlertMsg({ type: 'success', text: 'Purchase confirmed! Starting direct download...' });
-        if (onPurchaseSuccess) onPurchaseSuccess(data);
-        window.location.href = `${API_BASE}/api/plugins/${plugin.id}/download?username=${encodeURIComponent(user.username)}`;
+
+      if (res.ok && data.success) {
+        setAlertMsg({ type: 'success', text: data.message });
+        if (onPurchaseSuccess) onPurchaseSuccess();
+        setTimeout(() => {
+          handleDownloadJar();
+        }, 800);
       } else {
-        setAlertMsg({ type: 'error', text: data.error || 'Failed to complete purchase.' });
+        setAlertMsg({
+          type: 'error',
+          text: data.error || data.message || 'Transaction could not be completed.'
+        });
       }
     } catch {
-      setAlertMsg({ type: 'error', text: 'Network error executing purchase.' });
+      setAlertMsg({ type: 'error', text: 'Network connection failed.' });
     } finally {
       setBuying(false);
     }
@@ -129,11 +160,6 @@ export default function PluginDetailModal({
 
   const handleDownloadJar = () => {
     if (!user) {
-      onOpenAuth();
-      return;
-    }
-    if (!isVerified) {
-      setAlertMsg({ type: 'error', text: 'Please verify your email address to download.' });
       onOpenAuth();
       return;
     }
@@ -145,15 +171,33 @@ export default function PluginDetailModal({
       <div className="modal-card" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '28px' }}>{plugin.icon}</span>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-bright)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff'
+            }}>
+              {getCategoryIcon(plugin.category)}
+            </div>
             <div>
               <div className="modal-title" style={{ fontSize: '18px' }}>{plugin.name}</div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                v{plugin.version} ΓÇó {plugin.category} ΓÇó {plugin.supportedVersions}
+                v{plugin.version} • {plugin.category} • {plugin.supportedVersions}
               </div>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose}>Γ£ò</button>
+          <button
+            className="modal-close"
+            onClick={onClose}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* Tab Selector */}
@@ -205,11 +249,17 @@ export default function PluginDetailModal({
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                 <div className="stat-card">
                   <div className="stat-lbl">Rating</div>
-                  <div className="stat-val" style={{ fontSize: '20px' }}>Γ¡É {plugin.rating || '5.0'} / 5.0</div>
+                  <div className="stat-val" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Star size={18} fill="currentColor" style={{ color: '#facc15' }} />
+                    <span>{plugin.rating || '5.0'} / 5.0</span>
+                  </div>
                 </div>
                 <div className="stat-card">
-                  <div className="stat-lbl">Downloads</div>
-                  <div className="stat-val" style={{ fontSize: '20px' }}>{plugin.downloads || 0}+</div>
+                  <div className="stat-lbl">Unique Downloads</div>
+                  <div className="stat-val" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Download size={18} />
+                    <span>{plugin.downloads || 0}</span>
+                  </div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-lbl">Architecture</div>
@@ -218,26 +268,28 @@ export default function PluginDetailModal({
               </div>
 
               <h4 style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '10px' }}>
-                Tags & Categories
+                Tags & Capabilities
               </h4>
-              <div className="plugin-tags" style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '24px' }}>
                 {(plugin.tags || []).map((t, idx) => (
-                  <span key={idx} className="plugin-tag">#{t}</span>
+                  <span key={idx} className="plugin-tag" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                    #{t}
+                  </span>
                 ))}
               </div>
 
               {plugin.screenshots && plugin.screenshots.length > 0 && (
                 <div>
-                  <h4 style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                    Gallery & Screenshots
+                  <h4 style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                    Screenshots & Visual Telemetry
                   </h4>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '8px' }}>
                     {plugin.screenshots.map((s, idx) => (
                       <img
                         key={idx}
                         src={s}
                         alt="Screenshot"
-                        style={{ width: '140px', height: '90px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-bright)', cursor: 'pointer' }}
+                        style={{ width: '220px', height: '130px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-bright)', cursor: 'pointer' }}
                         onClick={() => onOpenLightbox(s)}
                       />
                     ))}
@@ -253,17 +305,22 @@ export default function PluginDetailModal({
               {plugin.changelogs && plugin.changelogs.length > 0 ? (
                 plugin.changelogs.map((cl, idx) => (
                   <div key={idx} style={{
-                    borderLeft: '2px solid #fff',
-                    paddingLeft: '16px',
-                    marginBottom: '24px',
-                    position: 'relative'
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginBottom: '14px'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                      <span className="brand-badge">v{cl.version}</span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{cl.date}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span className="badge badge-blue">v{cl.version}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {cl.date}
+                      </span>
                     </div>
-                    <h4 style={{ fontSize: '15px', color: '#fff', marginBottom: '8px' }}>{cl.title}</h4>
-                    <ul style={{ paddingLeft: '18px', color: 'var(--text-secondary)', fontSize: '13px', lineHeight: 1.6 }}>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#fff', marginBottom: '8px' }}>
+                      {cl.title}
+                    </div>
+                    <ul style={{ paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                       {(cl.notes || []).map((note, nIdx) => (
                         <li key={nIdx}>{note}</li>
                       ))}
@@ -271,8 +328,8 @@ export default function PluginDetailModal({
                   </div>
                 ))
               ) : (
-                <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '30px' }}>
-                  No changelog entries published yet.
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  No changelogs posted for this plugin yet.
                 </div>
               )}
             </div>
@@ -289,14 +346,18 @@ export default function PluginDetailModal({
 
                 <div style={{ marginBottom: '10px' }}>
                   <label className="form-label">Your Rating</label>
-                  <div className="star-rating">
+                  <div className="star-rating" style={{ display: 'flex', gap: '6px', cursor: 'pointer' }}>
                     {[1, 2, 3, 4, 5].map(star => (
                       <span
                         key={star}
-                        className={`star ${star <= newRating ? 'active' : ''}`}
                         onClick={() => setNewRating(star)}
+                        style={{ display: 'inline-flex' }}
                       >
-                        Γÿà
+                        <Star
+                          size={20}
+                          fill={star <= newRating ? '#facc15' : 'none'}
+                          style={{ color: star <= newRating ? '#facc15' : '#4b5563' }}
+                        />
                       </span>
                     ))}
                   </div>
@@ -324,13 +385,21 @@ export default function PluginDetailModal({
                       style={{ display: 'none' }}
                       onChange={handleImageUpload}
                     />
-                    <label htmlFor="review-img-upload" style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      ≡ƒô╖ {reviewImage ? 'Change Image Attachment' : 'Upload Proof / Telemetry / Game Screenshot'}
+                    <label htmlFor="review-img-upload" style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <Camera size={15} />
+                      <span>{reviewImage ? 'Change Image Attachment' : 'Upload Proof / Telemetry / Game Screenshot'}</span>
                     </label>
                     {reviewImage && (
-                      <div className="image-preview-wrap">
+                      <div className="image-preview-wrap" style={{ marginTop: '10px' }}>
                         <img src={reviewImage} alt="Attachment" className="image-preview" />
-                        <button type="button" className="btn-remove-img" onClick={() => setReviewImage('')}>Γ£ò</button>
+                        <button
+                          type="button"
+                          className="btn-remove-img"
+                          onClick={() => setReviewImage('')}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <X size={12} />
+                        </button>
                       </div>
                     )}
                   </div>
@@ -356,8 +425,15 @@ export default function PluginDetailModal({
                       <div className="review-author">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span className="review-username">{r.username}</span>
-                          <span style={{ color: '#fff', fontSize: '12px' }}>
-                            {'Γÿà'.repeat(r.rating)}{'Γÿå'.repeat(5 - r.rating)}
+                          <span style={{ display: 'inline-flex', gap: '2px' }}>
+                            {[1, 2, 3, 4, 5].map(s => (
+                              <Star
+                                key={s}
+                                size={13}
+                                fill={s <= r.rating ? '#facc15' : 'none'}
+                                style={{ color: s <= r.rating ? '#facc15' : '#374151' }}
+                              />
+                            ))}
                           </span>
                         </div>
                         <span className="review-date">
@@ -403,13 +479,13 @@ export default function PluginDetailModal({
               <button
                 className="btn btn-primary"
                 onClick={onOpenAuth}
-                style={{ background: '#f59e0b', color: '#000', fontWeight: 700 }}
+                style={{ background: '#f59e0b', color: '#000', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                ΓÜá∩╕Å Verify Email to Download
+                <AlertTriangle size={15} /> Verify Email to Download
               </button>
             ) : isOwned || isFree ? (
-              <button className="btn btn-primary" onClick={handleDownloadJar}>
-                Γ¼ç Download {plugin.jarFileName || 'Plugin.jar'}
+              <button className="btn btn-primary" onClick={handleDownloadJar} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <Download size={15} /> Download {plugin.jarFileName || 'Plugin.jar'}
               </button>
             ) : user.balance >= plugin.price ? (
               <button className="btn btn-primary" onClick={handleBuy} disabled={buying}>
