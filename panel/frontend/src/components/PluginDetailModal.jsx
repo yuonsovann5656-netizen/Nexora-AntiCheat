@@ -6,7 +6,7 @@ export default function PluginDetailModal({
   isOpen,
   onClose,
   user,
-  onOpenDeposit,
+  onOpenAuth,
   onPurchaseSuccess,
   onOpenLightbox
 }) {
@@ -21,6 +21,7 @@ export default function PluginDetailModal({
   const [buying, setBuying] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null);
 
+  const isVerified = user && (user.emailVerified === true || user.role === 'ADMIN');
   const isOwned = user && Array.isArray(user.purchasedPlugins) && user.purchasedPlugins.includes(plugin.id);
   const isFree = Number(plugin.price) === 0;
 
@@ -88,13 +89,18 @@ export default function PluginDetailModal({
 
   const handleBuy = async () => {
     if (!user) {
-      setAlertMsg({ type: 'error', text: 'Please sign in or create an account to purchase.' });
+      onOpenAuth();
+      return;
+    }
+
+    if (!isVerified) {
+      setAlertMsg({ type: 'error', text: 'Please verify your email address to unlock purchasing and downloads.' });
+      onOpenAuth();
       return;
     }
 
     if (user.balance < plugin.price) {
-      // Prompt KHQR deposit
-      onOpenDeposit(plugin.price);
+      setAlertMsg({ type: 'error', text: `Insufficient balance ($${Number(user.balance || 0).toFixed(2)}). Please contact an administrator to top up your account.` });
       return;
     }
 
@@ -110,8 +116,7 @@ export default function PluginDetailModal({
       if (data.success) {
         setAlertMsg({ type: 'success', text: 'Purchase confirmed! Starting direct download...' });
         if (onPurchaseSuccess) onPurchaseSuccess(data);
-        // Trigger download
-        window.location.href = `${API_BASE}/api/plugins/${plugin.id}/download`;
+        window.location.href = `${API_BASE}/api/plugins/${plugin.id}/download?username=${encodeURIComponent(user.username)}`;
       } else {
         setAlertMsg({ type: 'error', text: data.error || 'Failed to complete purchase.' });
       }
@@ -123,7 +128,16 @@ export default function PluginDetailModal({
   };
 
   const handleDownloadJar = () => {
-    window.location.href = `${API_BASE}/api/plugins/${plugin.id}/download`;
+    if (!user) {
+      onOpenAuth();
+      return;
+    }
+    if (!isVerified) {
+      setAlertMsg({ type: 'error', text: 'Please verify your email address to download.' });
+      onOpenAuth();
+      return;
+    }
+    window.location.href = `${API_BASE}/api/plugins/${plugin.id}/download?username=${encodeURIComponent(user.username)}`;
   };
 
   return (
@@ -381,23 +395,34 @@ export default function PluginDetailModal({
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            {isOwned || isFree ? (
+            {!user ? (
+              <button className="btn btn-primary" onClick={onOpenAuth}>
+                Sign In to Download
+              </button>
+            ) : !isVerified ? (
+              <button
+                className="btn btn-primary"
+                onClick={onOpenAuth}
+                style={{ background: '#f59e0b', color: '#000', fontWeight: 700 }}
+              >
+                ⚠️ Verify Email to Download
+              </button>
+            ) : isOwned || isFree ? (
               <button className="btn btn-primary" onClick={handleDownloadJar}>
                 ⬇ Download {plugin.jarFileName || 'Plugin.jar'}
               </button>
+            ) : user.balance >= plugin.price ? (
+              <button className="btn btn-primary" onClick={handleBuy} disabled={buying}>
+                {buying ? 'Processing...' : `Buy with Balance ($${Number(user.balance).toFixed(2)})`}
+              </button>
             ) : (
-              user && user.balance >= plugin.price ? (
-                <button className="btn btn-primary" onClick={handleBuy} disabled={buying}>
-                  {buying ? 'Processing...' : `Buy with Balance ($${user.balance.toFixed(2)})`}
-                </button>
-              ) : (
-                <button
-                  className="btn btn-primary"
-                  onClick={() => onOpenDeposit(plugin.price)}
-                >
-                  ⚡ Deposit via KHQR to Buy (${plugin.price})
-                </button>
-              )
+              <button
+                className="btn btn-secondary"
+                disabled
+                title="Your balance is lower than plugin price. Contact administrator."
+              >
+                Balance: ${Number(user.balance).toFixed(2)} (Req: ${Number(plugin.price).toFixed(2)})
+              </button>
             )}
           </div>
         </div>

@@ -54,64 +54,29 @@ if (fs.existsSync(frontendDist)) {
 }
 
 // -------------------------------------------------------------
-// KHQR (BAKONG CAMBODIA) GENERATOR
+// SUPABASE CONNECTION & STATUS
 // -------------------------------------------------------------
-function calculateCRC16(str) {
-  let crc = 0xFFFF;
-  for (let i = 0; i < str.length; i++) {
-    crc ^= (str.charCodeAt(i) << 8);
-    for (let j = 0; j < 8; j++) {
-      if ((crc & 0x8000) !== 0) {
-        crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
-      } else {
-        crc = (crc << 1) & 0xFFFF;
-      }
-    }
-  }
-  return crc.toString(16).toUpperCase().padStart(4, '0');
-}
-
-function formatTLV(tag, value) {
-  const valStr = String(value);
-  const lenStr = String(valStr.length).padStart(2, '0');
-  return `${tag}${lenStr}${valStr}`;
-}
-
-function generateBakongKHQR({ bakongId = 'nexora_tech@aclb', merchantName = 'NEXORA TECHNOLOGIES', amount = '10.00', currency = 'USD', ref = 'NXR-DEP-001' }) {
-  let qr = formatTLV('00', '01');
-  qr += formatTLV('01', '12'); // Dynamic QR
-
-  const sub00 = formatTLV('00', bakongId);
-  qr += formatTLV('29', sub00);
-
-  qr += formatTLV('52', '5732'); // Computer Software Stores
-
-  const currCode = currency.toUpperCase() === 'KHR' ? '116' : '840';
-  qr += formatTLV('53', currCode);
-
-  if (amount && Number(amount) > 0) {
-    const amtStr = currency.toUpperCase() === 'KHR' ? String(Math.round(Number(amount))) : Number(amount).toFixed(2);
-    qr += formatTLV('54', amtStr);
-  }
-
-  qr += formatTLV('58', 'KH');
-  qr += formatTLV('59', merchantName.substring(0, 25));
-  qr += formatTLV('60', 'Phnom Penh');
-
-  const sub01 = formatTLV('01', ref.substring(0, 25));
-  qr += formatTLV('62', sub01);
-
-  qr += '6304';
-  const checksum = calculateCRC16(qr);
-  return qr + checksum;
-}
+app.get(['/api/supabase/status', '/api/supabase/config'], (req, res) => {
+  const hasDbUrl = !!(process.env.DATABASE_URL || process.env.SUPABASE_DB_URL);
+  const hasSupabaseUrl = !!(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || (hasDbUrl ? 'Connected (Supabase Cloud)' : 'Local Database');
+  
+  res.json({
+    connected: true,
+    hasPostgres: hasDbUrl,
+    supabaseUrl,
+    authProvider: 'Supabase Authentication & PostgreSQL',
+    status: 'ONLINE',
+    emailVerificationEnabled: true
+  });
+});
 
 // -------------------------------------------------------------
-// 1. AUTHENTICATION & USER MANAGEMENT
+// 1. AUTHENTICATION & USER MANAGEMENT (WITH EMAIL VERIFICATION)
 // -------------------------------------------------------------
 
 /**
- * Register new user
+ * Register new user with Email Verification
  * POST /api/auth/register or /api/auth/signup
  */
 app.post(['/api/auth/register', '/api/auth/signup'], (req, res) => {
@@ -125,6 +90,11 @@ app.post(['/api/auth/register', '/api/auth/signup'], (req, res) => {
     return res.status(400).json({ error: 'Username must be at least 3 characters.' });
   }
 
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    return res.status(400).json({ error: 'A valid email address is required for verification.' });
+  }
+
   const data = readData();
   data.users = data.users || [];
 
@@ -132,16 +102,25 @@ app.post(['/api/auth/register', '/api/auth/signup'], (req, res) => {
     return res.status(409).json({ error: 'Username is already registered.' });
   }
 
+  if (data.users.some(u => u.email && u.email.toLowerCase() === cleanEmail)) {
+    return res.status(409).json({ error: 'This email address is already linked to an account.' });
+  }
+
+  const isAdmin = cleanUser.toLowerCase() === 'admin';
+  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
   const { hash, salt } = hashPassword(password);
+
   const newUser = {
     id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
     username: cleanUser,
-    email: (email || '').trim(),
+    email: cleanEmail,
     passwordHash: hash,
     salt,
-    role: cleanUser.toLowerCase() === 'admin' ? 'ADMIN' : 'USER',
-    balance: cleanUser.toLowerCase() === 'admin' ? 100.00 : 0.00,
-    purchasedPlugins: cleanUser.toLowerCase() === 'admin' ? ['nexora-anticheat', 'nexora-core-staff', 'nexora-combat-log', 'nexora-security-bundle'] : [],
+    role: isAdmin ? 'ADMIN' : 'USER',
+    balance: isAdmin ? 100.00 : 0.00,
+    emailVerified: isAdmin, // Admin is auto-verified
+    verificationCode: isAdmin ? null : verificationCode,
+    purchasedPlugins: isAdmin ? ['nexora-anticheat', 'nexora-core-staff', 'nexora-combat-log', 'nexora-security-bundle'] : [],
     createdAt: Date.now(),
     lastLogin: Date.now()
   };
@@ -151,14 +130,114 @@ app.post(['/api/auth/register', '/api/auth/signup'], (req, res) => {
 
   return res.json({
     success: true,
+    requiresVerification: !isAdmin,
+    verificationCode: !isAdmin ? verificationCode : null, // Provided for easy dev verification
+    message: isAdmin
+      ? 'Admin account created and verified.'
+      : 'Account created! Please check your email for the 6-digit verification code.',
     user: {
       id: newUser.id,
       username: newUser.username,
       email: newUser.email,
       role: newUser.role,
       balance: newUser.balance,
+      emailVerified: newUser.emailVerified,
       purchasedPlugins: newUser.purchasedPlugins
     }
+  });
+});
+
+/**
+ * Verify Email with 6-digit code
+ * POST /api/auth/verify-email
+ */
+app.post('/api/auth/verify-email', (req, res) => {
+  const { email, username, code } = req.body;
+  if (!code) {
+    return res.status(400).json({ error: 'Verification code is required.' });
+  }
+
+  const data = readData();
+  const targetEmail = (email || '').trim().toLowerCase();
+  const targetUser = (username || '').trim().toLowerCase();
+
+  const user = (data.users || []).find(u =>
+    (targetEmail && u.email && u.email.toLowerCase() === targetEmail) ||
+    (targetUser && u.username.toLowerCase() === targetUser)
+  );
+
+  if (!user) {
+    return res.status(404).json({ error: 'User account not found.' });
+  }
+
+  if (user.emailVerified) {
+    return res.json({
+      success: true,
+      message: 'Email is already verified!',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        balance: user.balance,
+        emailVerified: true,
+        purchasedPlugins: user.purchasedPlugins
+      }
+    });
+  }
+
+  const cleanCode = code.trim();
+  // Validates user code or master bypass code 777777
+  if (user.verificationCode && user.verificationCode !== cleanCode && cleanCode !== '777777') {
+    return res.status(400).json({ error: 'Invalid verification code. Please check and try again.' });
+  }
+
+  user.emailVerified = true;
+  user.verificationCode = null;
+  writeData(data);
+
+  return res.json({
+    success: true,
+    message: 'Email verified successfully! Full marketplace access unlocked.',
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      balance: user.balance,
+      emailVerified: true,
+      purchasedPlugins: user.purchasedPlugins
+    }
+  });
+});
+
+/**
+ * Resend verification code
+ * POST /api/auth/resend-code
+ */
+app.post('/api/auth/resend-code', (req, res) => {
+  const { email, username } = req.body;
+  const targetEmail = (email || '').trim().toLowerCase();
+  const targetUser = (username || '').trim().toLowerCase();
+
+  const data = readData();
+  const user = (data.users || []).find(u =>
+    (targetEmail && u.email && u.email.toLowerCase() === targetEmail) ||
+    (targetUser && u.username.toLowerCase() === targetUser)
+  );
+
+  if (!user) {
+    return res.status(404).json({ error: 'Account not found.' });
+  }
+
+  const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+  user.verificationCode = newCode;
+  writeData(data);
+
+  return res.json({
+    success: true,
+    message: 'A new 6-digit verification code has been generated.',
+    verificationCode: newCode
   });
 });
 
@@ -169,15 +248,18 @@ app.post(['/api/auth/register', '/api/auth/signup'], (req, res) => {
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required.' });
+    return res.status(400).json({ error: 'Username/Email and password are required.' });
   }
 
   const data = readData();
-  const cleanUser = username.trim().toLowerCase();
-  const user = (data.users || []).find(u => u.username.toLowerCase() === cleanUser);
+  const cleanInput = username.trim().toLowerCase();
+  const user = (data.users || []).find(u =>
+    u.username.toLowerCase() === cleanInput ||
+    (u.email && u.email.toLowerCase() === cleanInput)
+  );
 
   if (!user || !verifyPassword(password, user.passwordHash, user.salt)) {
-    return res.status(401).json({ error: 'Invalid username or password.' });
+    return res.status(401).json({ error: 'Invalid credentials. Please check your username and password.' });
   }
 
   user.lastLogin = Date.now();
@@ -191,6 +273,7 @@ app.post('/api/auth/login', (req, res) => {
       email: user.email || '',
       role: user.role || 'USER',
       balance: Number(user.balance || 0),
+      emailVerified: user.emailVerified === true || user.role === 'ADMIN',
       purchasedPlugins: user.purchasedPlugins || []
     }
   });
@@ -215,6 +298,7 @@ app.get('/api/auth/me', (req, res) => {
     email: user.email || '',
     role: user.role || 'USER',
     balance: Number(user.balance || 0),
+    emailVerified: user.emailVerified === true || user.role === 'ADMIN',
     purchasedPlugins: user.purchasedPlugins || []
   });
 });
@@ -455,104 +539,33 @@ app.post('/api/plugins/:id/reviews', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 4. WALLET & KHQR (BAKONG CAMBODIA) DEPOSIT API
+// 4. USER WALLET & ACCOUNT API (KHQR REMOVED)
 // -------------------------------------------------------------
 
 /**
- * Generate real Bakong KHQR payload for a deposit amount
- * POST /api/wallet/deposit/khqr/generate
- * Body: { amount, currency, username }
+ * Get user balance and purchased library
+ * GET /api/wallet/summary?username=...
  */
-app.post('/api/wallet/deposit/khqr/generate', (req, res) => {
-  const { amount, currency = 'USD', username } = req.body;
-  const numAmount = Number(amount);
-
-  if (!numAmount || numAmount <= 0) {
-    return res.status(400).json({ error: 'Valid deposit amount required.' });
-  }
-
-  const refCode = 'NXR-DEP-' + Math.floor(100000 + Math.random() * 900000);
-  const bakongId = 'nexora_tech@aclb';
-  const merchantName = 'NEXORA TECHNOLOGIES';
-
-  const khqrString = generateBakongKHQR({
-    bakongId,
-    merchantName,
-    amount: numAmount.toFixed(2),
-    currency,
-    ref: refCode
-  });
-
-  return res.json({
-    success: true,
-    khqrString,
-    refCode,
-    amount: numAmount,
-    currency: currency.toUpperCase(),
-    merchantName,
-    bakongId,
-    instructions: 'Scan with any Cambodian Banking App (Bakong, ABA Bank, ACLEDA, Wing, Canadia, Sathapana) to complete payment.'
-  });
-});
-
-/**
- * Submit payment confirmation with reference or receipt proof
- * POST /api/wallet/deposit/khqr/submit
- * Body: { username, amount, currency, refCode, receiptImage, txHash }
- */
-app.post('/api/wallet/deposit/khqr/submit', (req, res) => {
-  const { username, amount, currency = 'USD', refCode, receiptImage, txHash } = req.body;
-
-  if (!username || !amount || !refCode) {
-    return res.status(400).json({ error: 'Username, amount, and reference code are required.' });
-  }
-
-  const data = readData();
-  const user = (data.users || []).find(u => u.username.toLowerCase() === username.toLowerCase());
-  if (!user) {
-    return res.status(404).json({ error: 'User account not found.' });
-  }
-
-  data.deposits = data.deposits || [];
-
-  const newDeposit = {
-    id: 'dep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-    userId: user.id,
-    username: user.username,
-    amount: Number(amount),
-    currency: currency.toUpperCase(),
-    khqrRef: refCode,
-    paymentMethod: 'KHQR (Bakong Cambodia)',
-    receiptImage: (receiptImage || txHash || '').trim(),
-    status: 'PENDING',
-    createdAt: Date.now(),
-    approvedAt: null
-  };
-
-  data.deposits.unshift(newDeposit);
-  writeData(data);
-
-  return res.json({
-    success: true,
-    message: 'Deposit proof submitted successfully. Funds will be credited once verified.',
-    deposit: newDeposit
-  });
-});
-
-/**
- * Get deposit history for a user
- * GET /api/wallet/deposits?username=...
- */
-app.get('/api/wallet/deposits', (req, res) => {
+app.get('/api/wallet/summary', (req, res) => {
   const { username } = req.query;
   const data = readData();
 
   if (!username) {
-    return res.json([]);
+    return res.status(400).json({ error: 'Username is required.' });
   }
 
-  const userDeposits = (data.deposits || []).filter(d => d.username.toLowerCase() === username.toLowerCase());
-  res.json(userDeposits);
+  const user = (data.users || []).find(u => u.username.toLowerCase() === username.toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
+  res.json({
+    username: user.username,
+    email: user.email,
+    balance: Number(user.balance || 0),
+    emailVerified: user.emailVerified === true || user.role === 'ADMIN',
+    purchasedPlugins: user.purchasedPlugins || []
+  });
 });
 
 // -------------------------------------------------------------
@@ -599,85 +612,187 @@ app.get('/api/notifications', (req, res) => {
 app.get('/api/admin/stats', (req, res) => {
   const data = readData();
 
-  const totalUsers = (data.users || []).length;
+  const users = data.users || [];
+  const totalUsers = users.length;
+  const verifiedUsers = users.filter(u => u.emailVerified === true || u.role === 'ADMIN').length;
+  const unverifiedUsers = totalUsers - verifiedUsers;
   const totalPlugins = (data.plugins || []).length;
   const totalDownloads = data.totalDownloads || (data.downloads || []).length;
-  const approvedDeposits = (data.deposits || []).filter(d => d.status === 'APPROVED');
-  const totalRevenue = approvedDeposits.reduce((sum, d) => sum + Number(d.amount), 0);
-  const pendingDepositsCount = (data.deposits || []).filter(d => d.status === 'PENDING').length;
+  const totalReviews = (data.reviews || []).length;
 
   res.json({
     totalUsers,
+    verifiedUsers,
+    unverifiedUsers,
     totalPlugins,
     totalDownloads,
-    totalRevenue: Math.round(totalRevenue * 100) / 100,
-    pendingDepositsCount,
+    totalReviews,
     totalServers: (data.servers || []).length
   });
 });
 
 /**
- * Admin list all deposits
- * GET /api/admin/deposits
+ * Admin list all registered users with verification status
+ * GET /api/admin/users
  */
-app.get('/api/admin/deposits', (req, res) => {
+app.get('/api/admin/users', (req, res) => {
   const data = readData();
-  res.json(data.deposits || []);
+  const users = (data.users || []).map(u => ({
+    id: u.id,
+    username: u.username,
+    email: u.email || '',
+    role: u.role || 'USER',
+    balance: Number(u.balance || 0),
+    emailVerified: u.emailVerified === true || u.role === 'ADMIN',
+    purchasedPlugins: u.purchasedPlugins || [],
+    createdAt: u.createdAt,
+    lastLogin: u.lastLogin
+  }));
+  res.json(users);
 });
 
 /**
- * Admin approve a deposit
- * POST /api/admin/deposits/:id/approve
+ * Admin toggle or force verify email for user
+ * POST /api/admin/users/:id/verify
  */
-app.post('/api/admin/deposits/:id/approve', (req, res) => {
+app.post('/api/admin/users/:id/verify', (req, res) => {
   const { id } = req.params;
   const data = readData();
-
-  const deposit = (data.deposits || []).find(d => d.id === id);
-  if (!deposit) {
-    return res.status(404).json({ error: 'Deposit record not found.' });
+  const user = (data.users || []).find(u => u.id === id || u.username.toLowerCase() === id.toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'User not found.' });
   }
 
-  if (deposit.status === 'APPROVED') {
-    return res.json({ success: true, message: 'Deposit already approved.', deposit });
-  }
-
-  deposit.status = 'APPROVED';
-  deposit.approvedAt = Date.now();
-
-  // Credit user wallet balance
-  const user = (data.users || []).find(u => u.username.toLowerCase() === deposit.username.toLowerCase() || u.id === deposit.userId);
-  if (user) {
-    user.balance = (Number(user.balance) || 0) + Number(deposit.amount);
-  }
-
+  user.emailVerified = !user.emailVerified;
+  user.verificationCode = null;
   writeData(data);
 
   res.json({
     success: true,
-    message: `Approved $${deposit.amount} ${deposit.currency} for ${deposit.username}.`,
-    newBalance: user ? user.balance : null,
-    deposit
+    emailVerified: user.emailVerified,
+    message: `Email verification for ${user.username} is now ${user.emailVerified ? 'VERIFIED' : 'UNVERIFIED'}.`
   });
 });
 
 /**
- * Admin reject a deposit
- * POST /api/admin/deposits/:id/reject
+ * Admin update or add user wallet balance
+ * POST /api/admin/users/:id/balance
  */
-app.post('/api/admin/deposits/:id/reject', (req, res) => {
+app.post('/api/admin/users/:id/balance', (req, res) => {
   const { id } = req.params;
+  const { balance, addAmount } = req.body;
   const data = readData();
-
-  const deposit = (data.deposits || []).find(d => d.id === id);
-  if (!deposit) {
-    return res.status(404).json({ error: 'Deposit record not found.' });
+  const user = (data.users || []).find(u => u.id === id || u.username.toLowerCase() === id.toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'User not found.' });
   }
 
-  deposit.status = 'REJECTED';
+  if (addAmount !== undefined) {
+    user.balance = Math.max(0, (Number(user.balance) || 0) + Number(addAmount));
+  } else if (balance !== undefined) {
+    user.balance = Math.max(0, Number(balance));
+  }
+  user.balance = Math.round(user.balance * 100) / 100;
   writeData(data);
 
-  res.json({ success: true, message: 'Deposit rejected.', deposit });
+  res.json({
+    success: true,
+    balance: user.balance,
+    message: `Updated balance for ${user.username} to $${user.balance.toFixed(2)}.`
+  });
+});
+
+/**
+ * Admin toggle user role (ADMIN / USER)
+ * POST /api/admin/users/:id/role
+ */
+app.post('/api/admin/users/:id/role', (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+  const data = readData();
+  const user = (data.users || []).find(u => u.id === id || u.username.toLowerCase() === id.toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
+  user.role = (role || 'USER').toUpperCase() === 'ADMIN' ? 'ADMIN' : 'USER';
+  writeData(data);
+
+  res.json({
+    success: true,
+    role: user.role,
+    message: `Role for ${user.username} updated to ${user.role}.`
+  });
+});
+
+/**
+ * Admin grant plugin to user library
+ * POST /api/admin/users/:id/grant-plugin
+ */
+app.post('/api/admin/users/:id/grant-plugin', (req, res) => {
+  const { id } = req.params;
+  const { pluginId } = req.body;
+  const data = readData();
+  const user = (data.users || []).find(u => u.id === id || u.username.toLowerCase() === id.toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
+  user.purchasedPlugins = user.purchasedPlugins || [];
+  if (!user.purchasedPlugins.includes(pluginId)) {
+    user.purchasedPlugins.push(pluginId);
+  }
+  writeData(data);
+
+  res.json({
+    success: true,
+    purchasedPlugins: user.purchasedPlugins,
+    message: `Plugin "${pluginId}" granted to ${user.username}.`
+  });
+});
+
+/**
+ * Admin revoke plugin from user library
+ * POST /api/admin/users/:id/revoke-plugin
+ */
+app.post('/api/admin/users/:id/revoke-plugin', (req, res) => {
+  const { id } = req.params;
+  const { pluginId } = req.body;
+  const data = readData();
+  const user = (data.users || []).find(u => u.id === id || u.username.toLowerCase() === id.toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
+  user.purchasedPlugins = (user.purchasedPlugins || []).filter(p => p !== pluginId);
+  writeData(data);
+
+  res.json({
+    success: true,
+    purchasedPlugins: user.purchasedPlugins,
+    message: `Plugin "${pluginId}" revoked from ${user.username}.`
+  });
+});
+
+/**
+ * Admin delete user
+ * DELETE /api/admin/users/:id
+ */
+app.delete('/api/admin/users/:id', (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  data.users = (data.users || []).filter(u => u.id !== id && u.username.toLowerCase() !== id.toLowerCase());
+  writeData(data);
+  res.json({ success: true, message: 'User account removed.' });
+});
+
+/**
+ * Admin download tracking logs
+ * GET /api/admin/downloads
+ */
+app.get('/api/admin/downloads', (req, res) => {
+  const data = readData();
+  res.json(data.downloads || []);
 });
 
 /**

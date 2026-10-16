@@ -219,6 +219,7 @@ const defaultState = {
       salt: defaultAdminCreds.salt,
       role: 'ADMIN',
       balance: 100.00,
+      emailVerified: true,
       purchasedPlugins: ['nexora-anticheat', 'nexora-core-staff', 'nexora-combat-log', 'nexora-security-bundle'],
       createdAt: Date.now(),
       lastLogin: null
@@ -226,7 +227,6 @@ const defaultState = {
   ],
   plugins: defaultPlugins,
   reviews: defaultReviews,
-  deposits: defaultDeposits,
   downloads: [],
   totalDownloads: 0,
   servers: [],
@@ -279,10 +279,12 @@ async function initDatabase() {
             last_login BIGINT
           );
 
-          -- Ensure balance & purchased_plugins exist
+          -- Ensure email, balance, verification & purchased_plugins exist
           ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
           ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS balance DOUBLE PRECISION NOT NULL DEFAULT 0.00;
           ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS purchased_plugins TEXT NOT NULL DEFAULT '[]';
+          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(64);
 
           -- 3. Plugins Catalog Table
           CREATE TABLE IF NOT EXISTS nexora_plugins (
@@ -402,6 +404,8 @@ async function loadFromPostgres() {
         salt: r.salt,
         role: r.role,
         balance: Number(r.balance || 0),
+        emailVerified: r.email_verified === true || r.role === 'ADMIN',
+        verificationCode: r.verification_code || null,
         purchasedPlugins: JSON.parse(r.purchased_plugins || '[]'),
         createdAt: Number(r.created_at),
         lastLogin: r.last_login ? Number(r.last_login) : null
@@ -532,16 +536,18 @@ async function syncToPostgres(data) {
     // Sync users
     for (const u of (data.users || [])) {
       await client.query(`
-        INSERT INTO nexora_users (id, username, email, password_hash, salt, role, balance, purchased_plugins, created_at, last_login)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO nexora_users (id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, verification_code, created_at, last_login)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         ON CONFLICT (id) DO UPDATE SET
           email = EXCLUDED.email,
           password_hash = EXCLUDED.password_hash,
           salt = EXCLUDED.salt,
           balance = EXCLUDED.balance,
           purchased_plugins = EXCLUDED.purchased_plugins,
+          email_verified = EXCLUDED.email_verified,
+          verification_code = EXCLUDED.verification_code,
           last_login = EXCLUDED.last_login;
-      `, [u.id, u.username, u.email || '', u.passwordHash, u.salt, u.role || 'USER', u.balance || 0, JSON.stringify(u.purchasedPlugins || []), u.createdAt, u.lastLogin]);
+      `, [u.id, u.username, u.email || '', u.passwordHash, u.salt, u.role || 'USER', u.balance || 0, JSON.stringify(u.purchasedPlugins || []), u.emailVerified === true, u.verificationCode || null, u.createdAt, u.lastLogin]);
     }
 
     // Sync plugins
