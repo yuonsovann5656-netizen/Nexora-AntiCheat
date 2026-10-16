@@ -3,6 +3,12 @@ import { API_BASE } from './apiConfig';
 import PluginDetailModal from './components/PluginDetailModal';
 import AuthModal from './components/AuthModal';
 import AdminPanel from './components/AdminPanel';
+import {
+  Shield, Sword, Settings, Package, Plug,
+  Star, Download, Tag, Bell, Wallet,
+  Crown, BookOpen, Store, LogOut, User,
+  ChevronRight, Search, CheckCircle, AlertCircle,
+} from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState(() => {
@@ -110,13 +116,13 @@ export default function App() {
 
   const categories = ['ALL', 'Security', 'Administration', 'Combat', 'Bundle'];
 
-  // Clean icon map — never use plugin.icon from DB (encoding is broken)
+  // Lucide icon map by category
   const CATEGORY_ICONS = {
-    security:       '🛡️',
-    administration: '⚙️',
-    combat:         '⚔️',
-    bundle:         '📦',
-    default:        '🔌',
+    security:       <Shield size={20} />,
+    administration: <Settings size={20} />,
+    combat:         <Sword size={20} />,
+    bundle:         <Package size={20} />,
+    default:        <Plug size={20} />,
   };
   const getPluginIcon = (plugin) => {
     const key = (plugin.category || '').toLowerCase();
@@ -154,27 +160,22 @@ export default function App() {
               className={`nav-link ${viewFilter === 'ALL' ? 'active' : ''}`}
               onClick={() => setViewFilter('ALL')}
             >
-              Store Catalog
+              <Store size={15} /> Store Catalog
             </button>
             <button
               className={`nav-link ${viewFilter === 'MY_LIBRARY' ? 'active' : ''}`}
               onClick={() => {
-                if (!user) {
-                  setShowAuthModal(true);
-                } else {
-                  setViewFilter('MY_LIBRARY');
-                }
+                if (!user) { setShowAuthModal(true); }
+                else { setViewFilter('MY_LIBRARY'); }
               }}
             >
-              My Library {user && user.purchasedPlugins ? `(${user.purchasedPlugins.length})` : ''}
+              <BookOpen size={15} /> My Library {user && user.purchasedPlugins ? `(${user.purchasedPlugins.length})` : ''}
             </button>
             <button
               className="nav-link"
-              onClick={() => {
-                if (plugins.length > 0) setSelectedPlugin(plugins[0]);
-              }}
+              onClick={() => { if (plugins.length > 0) setSelectedPlugin(plugins[0]); }}
             >
-              Changelogs
+              <Tag size={15} /> Changelogs
             </button>
           </nav>
 
@@ -182,32 +183,33 @@ export default function App() {
             {/* Wallet Balance Pill */}
             {user && (
               <div className="wallet-pill">
+                <Wallet size={14} style={{ color: 'var(--text-muted)' }} />
                 <span className="wallet-balance">${Number(user.balance || 0).toFixed(2)}</span>
                 {user.emailVerified ? (
-                  <span className="badge badge-green" style={{ fontSize: '10px', padding: '2px 7px' }}>
-                    VERIFIED ✓
+                  <span className="badge badge-green" style={{ fontSize: '10px', padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <CheckCircle size={10} /> VERIFIED
                   </span>
                 ) : (
                   <button
                     onClick={() => setShowAuthModal(true)}
                     className="badge badge-yellow"
-                    style={{ fontSize: '10px', padding: '2px 7px', cursor: 'pointer' }}
+                    style={{ fontSize: '10px', padding: '2px 7px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                     title="Click to verify email"
                   >
-                    VERIFY
+                    <AlertCircle size={10} /> VERIFY
                   </button>
                 )}
               </div>
             )}
 
-            {/* Notification Bell with Update Badges */}
+            {/* Notification Bell */}
             <div className="notif-wrapper">
               <button
                 className="notif-btn"
                 onClick={() => setShowNotifDropdown(!showNotifDropdown)}
                 title="Updates & Changelogs"
               >
-                ≡ƒöö
+                <Bell size={16} />
                 {notifications.length > 0 && <span className="notif-dot"></span>}
               </button>
 
@@ -225,7 +227,7 @@ export default function App() {
                       }}
                     >
                       <div className="notif-title">{n.title}</div>
-                      <div className="notif-desc">{n.summary} ΓÇó {n.date}</div>
+                      <div className="notif-desc">{n.summary} · {n.date}</div>
                     </div>
                   ))}
                   <div style={{ textAlign: 'center', marginTop: '10px' }}>
@@ -241,7 +243,7 @@ export default function App() {
               )}
             </div>
 
-            {/* User Profile / Admin / Login */}
+            {/* User / Admin / Login */}
             {user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {user.role === 'ADMIN' && (
@@ -250,10 +252,10 @@ export default function App() {
                     style={{ borderColor: '#fff', fontWeight: 700 }}
                     onClick={() => setShowAdminPanel(true)}
                   >
-                    ≡ƒææ Admin Panel
+                    <Crown size={13} /> Admin Panel
                   </button>
                 )}
-                <div style={{ textAlign: 'right', marginRight: '6px' }}>
+                <div style={{ textAlign: 'right', marginRight: '2px' }}>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{user.username}</div>
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{user.role}</div>
                 </div>
@@ -262,7 +264,7 @@ export default function App() {
                   onClick={handleLogout}
                   title="Sign Out"
                 >
-                  Sign Out
+                  <LogOut size={13} />
                 </button>
               </div>
             ) : (
@@ -270,7 +272,7 @@ export default function App() {
                 className="btn btn-primary btn-sm"
                 onClick={() => setShowAuthModal(true)}
               >
-                Sign In / Register
+                <User size={14} /> Sign In
               </button>
             )}
           </div>
@@ -380,10 +382,12 @@ export default function App() {
 
                   <div className="plugin-stats-row">
                     <span className="plugin-stat">
-                      ⭐ <strong>{plugin.rating || '5.0'}</strong>
+                      <Star size={12} fill="currentColor" style={{ color: '#facc15' }} />
+                      <strong>{plugin.rating || '5.0'}</strong>
                     </span>
                     <span className="plugin-stat">
-                      ⬇ <strong>{plugin.downloads || 0}</strong> downloads
+                      <Download size={12} />
+                      <strong>{plugin.downloads || 0}</strong> dl
                     </span>
                     <span className="plugin-stat mono">
                       v{plugin.version}
