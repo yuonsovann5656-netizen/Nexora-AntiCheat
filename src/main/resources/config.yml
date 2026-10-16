@@ -2,20 +2,16 @@
 #              NEXORA ANTICHEAT - CORE CONFIG
 # ==========================================================
 
-# License Authentication & Web Panel Integration
-license:
-  # Enable license key enforcement
+# Web Panel Cloud Fleet Integration (Optional)
+panel:
+  # Enable telemetry reporting to your Nexora Web Panel
   enabled: true
-  # Your unique Nexora License Key obtained from the Web Panel
-  key: "NX-DEMO-2026-KEY1"
   # Name of your server displayed in the Web Panel
   server-name: "Nexora Minecraft Server"
   # Web Panel API URL (change to your web domain in production)
   api-url: "http://localhost:3000/api"
   # Telemetry heartbeat ping interval in seconds
   heartbeat-interval-seconds: 60
-  # Allow server to run temporarily if licensing API is unreachable
-  allow-offline-grace: true
 
 settings:
   # Automatically bypass anti-cheat checks for server operators (OPs)

@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { API_BASE } from '../apiConfig';
-import KeyGeneratorModal from './KeyGeneratorModal';
 
 const ADMIN_NAV = [
   { key: 'overview', icon: '📊', label: 'Fleet Overview' },
+  { key: 'downloads', icon: '📥', label: 'Plugin Downloads' },
   { key: 'servers', icon: '🖥️', label: 'Server Fleet' },
   { key: 'plugins', icon: '🔌', label: 'Server Plugins' },
-  { key: 'users', icon: '👥', label: 'Registered Users' },
-  { key: 'licenses', icon: '🔑', label: 'License Keys' },
+  { key: 'players', icon: '👥', label: 'Online Players' },
   { key: 'violations', icon: '🚨', label: 'Violation Logs' },
   { key: 'bans', icon: '🔨', label: 'Player Bans' },
+  { key: 'admins', icon: '👤', label: 'Admin Accounts' },
 ];
 
 function formatDate(ts) {
@@ -29,42 +29,48 @@ export default function AdminDashboard({ user, onLogout }) {
   const [activePage, setActivePage] = useState('overview');
   const [stats, setStats] = useState(null);
   const [servers, setServers] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [licenses, setLicenses] = useState([]);
+  const [admins, setAdmins] = useState([]);
   const [violations, setViolations] = useState([]);
   const [playerBans, setPlayerBans] = useState([]);
-  const [showKeyGen, setShowKeyGen] = useState(false);
+  const [downloadData, setDownloadData] = useState({ totalDownloads: 0, downloads: [] });
   const [pluginSearch, setPluginSearch] = useState('');
   const [banReason, setBanReason] = useState('');
   const [banningServerId, setBanningServerId] = useState(null);
   const [actionAlert, setActionAlert] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  /* Quick action states */
+  const [newBanPlayer, setNewBanPlayer] = useState('');
+  const [newBanReason, setNewBanReason] = useState('');
+  const [kickPlayerName, setKickPlayerName] = useState('');
+  const [kickReason, setKickReason] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
-      const [statsRes, serversRes, usersRes, licensesRes, violationsRes, bansRes] = await Promise.all([
+      const [statsRes, serversRes, adminsRes, violationsRes, bansRes, dlRes] = await Promise.all([
         fetch(`${API_BASE}/api/admin/stats`),
         fetch(`${API_BASE}/api/admin/servers`),
         fetch(`${API_BASE}/api/admin/users`),
-        fetch(`${API_BASE}/api/admin/licenses`),
         fetch(`${API_BASE}/api/admin/violations`),
         fetch(`${API_BASE}/api/admin/player-bans`),
+        fetch(`${API_BASE}/api/admin/downloads`),
       ]);
 
-      const [statsData, serversData, usersData, licensesData, violationsData, bansData] = await Promise.all([
+      const [statsD, serversD, adminsD, violationsD, bansD, dlD] = await Promise.all([
         statsRes.json(),
         serversRes.json(),
-        usersRes.json(),
-        licensesRes.json(),
+        adminsRes.json(),
         violationsRes.json(),
         bansRes.json(),
+        dlRes.json(),
       ]);
 
-      setStats(statsData);
-      setServers(Array.isArray(serversData) ? serversData : []);
-      setUsers(Array.isArray(usersData) ? usersData : []);
-      setLicenses(Array.isArray(licensesData) ? licensesData : []);
-      setViolations(Array.isArray(violationsData) ? violationsData : []);
-      setPlayerBans(Array.isArray(bansData) ? bansData : []);
+      setStats(statsD);
+      setServers(Array.isArray(serversD) ? serversD : []);
+      setAdmins(Array.isArray(adminsD) ? adminsD : []);
+      setViolations(Array.isArray(violationsD) ? violationsD : []);
+      setPlayerBans(Array.isArray(bansD) ? bansD : []);
+      setDownloadData(dlD && typeof dlD === 'object' ? dlD : { totalDownloads: 0, downloads: [] });
     } catch (err) {
       console.warn('Admin fetch warning:', err.message);
     }
@@ -81,7 +87,7 @@ export default function AdminDashboard({ user, onLogout }) {
       const res = await fetch(`${API_BASE}/api/admin/servers/${serverId}/ban`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: banReason.trim() || 'Administrative fleet ban' }),
+        body: JSON.stringify({ reason: banReason.trim() || 'Admin fleet ban' }),
       });
       const data = await res.json();
       setBanReason('');
@@ -94,39 +100,88 @@ export default function AdminDashboard({ user, onLogout }) {
     }
   };
 
-  const handleToggleLicenseStatus = async (key) => {
+  const handleBanPlayer = async (e) => {
+    e.preventDefault();
+    if (!newBanPlayer.trim()) return;
     try {
-      const res = await fetch(`${API_BASE}/api/admin/licenses/${encodeURIComponent(key)}/status`, {
+      const res = await fetch(`${API_BASE}/api/admin/players/ban`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerName: newBanPlayer.trim(),
+          reason: newBanReason.trim() || 'Admin ban',
+          duration: 'PERMANENT',
+          ipBanned: true
+        }),
       });
       const data = await res.json();
-      setActionAlert({ type: 'success', text: `License ${key} status updated.` });
-      fetchData();
-      setTimeout(() => setActionAlert(null), 3000);
+      if (res.ok) {
+        setActionAlert({ type: 'success', text: `Player "${newBanPlayer}" banned.` });
+        setNewBanPlayer('');
+        setNewBanReason('');
+        fetchData();
+      } else {
+        setActionAlert({ type: 'error', text: data.error || 'Ban failed.' });
+      }
+      setTimeout(() => setActionAlert(null), 4000);
     } catch {
-      setActionAlert({ type: 'error', text: 'Failed to update license status.' });
+      setActionAlert({ type: 'error', text: 'Network connection failed.' });
     }
   };
 
-  const handleResetIp = async (key) => {
+  const handleUnbanPlayer = async (banId) => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/licenses/${encodeURIComponent(key)}/reset-ip`, {
+      const res = await fetch(`${API_BASE}/api/admin/players/unban`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ banId }),
       });
       const data = await res.json();
-      setActionAlert({ type: 'success', text: `IP binding reset for license ${key}.` });
+      setActionAlert({ type: res.ok ? 'success' : 'error', text: data.message || 'Player unbanned.' });
       fetchData();
-      setTimeout(() => setActionAlert(null), 3000);
+      setTimeout(() => setActionAlert(null), 3500);
     } catch {
-      setActionAlert({ type: 'error', text: 'Failed to reset IP.' });
+      setActionAlert({ type: 'error', text: 'Failed to unban player.' });
     }
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    setActionAlert({ type: 'success', text: `Copied ${text} to clipboard!` });
-    setTimeout(() => setActionAlert(null), 2500);
+  const handleKickPlayer = async (playerName) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/players/kick`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerName, reason: 'Kicked by administrator' }),
+      });
+      const data = await res.json();
+      setActionAlert({ type: res.ok ? 'success' : 'error', text: data.message || 'Kick dispatched.' });
+      fetchData();
+      setTimeout(() => setActionAlert(null), 3500);
+    } catch {
+      setActionAlert({ type: 'error', text: 'Failed to kick player.' });
+    }
   };
+
+  const downloadUrl = `${window.location.origin}/download`;
+
+  const copyDownloadLink = () => {
+    navigator.clipboard.writeText(downloadUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  // Collect all online players across all connected servers
+  const allOnlinePlayers = [];
+  servers.forEach(s => {
+    if (s.isOnline && Array.isArray(s.playerNames)) {
+      s.playerNames.forEach(pName => {
+        allOnlinePlayers.push({
+          name: pName,
+          serverName: s.serverName,
+          serverIp: `${s.ip}:${s.port}`
+        });
+      });
+    }
+  });
 
   /* ========================================================
      PAGES RENDERERS
@@ -137,12 +192,12 @@ export default function AdminDashboard({ user, onLogout }) {
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Fleet Overview (Admin Authority)</h1>
-          <p className="page-desc">Global network telemetry across all licensed Minecraft servers.</p>
+          <h1 className="page-title">Fleet & Downloads Overview</h1>
+          <p className="page-desc">Telemetry dashboard monitoring plugin downloads and active Minecraft servers.</p>
         </div>
         <div className="uptime-badge">
           <div className="uptime-pulse"></div>
-          <span>24/7 Licensing Authority Active</span>
+          <span>24/7 Nexora Authority Active</span>
         </div>
       </div>
 
@@ -150,82 +205,108 @@ export default function AdminDashboard({ user, onLogout }) {
         <div className={`alert alert-${actionAlert.type}`}>{actionAlert.text}</div>
       )}
 
+      {/* Global Stat Cards */}
       <div className="grid-4" style={{ marginBottom: '24px' }}>
-        <div className="stat-card">
-          <span className="stat-label">Total Servers</span>
-          <span className="stat-value">{stats?.totalServersHosted ?? stats?.totalServers ?? 0}</span>
-          <span className="stat-sub">{stats?.activeServersOnline ?? stats?.onlineServers ?? 0} online now</span>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-label">Registered Users</span>
+        <div className="stat-card" style={{ borderColor: 'rgba(59, 130, 246, 0.3)' }}>
+          <span className="stat-label">Plugin Downloads</span>
           <span className="stat-value" style={{ color: 'var(--blue)' }}>
-            {stats?.totalUsers ?? stats?.registeredUsers ?? 0}
+            {downloadData.totalDownloads}
           </span>
-          <span className="stat-sub">Accounts in Supabase</span>
+          <span className="stat-sub">Total times downloaded</span>
         </div>
 
         <div className="stat-card">
-          <span className="stat-label">Issued Licenses</span>
+          <span className="stat-label">Active Servers</span>
           <span className="stat-value" style={{ color: 'var(--green)' }}>
-            {stats?.totalLicenses ?? stats?.issuedLicenses ?? 0}
+            {stats?.onlineServers ?? 0}
           </span>
-          <span className="stat-sub">{stats?.bannedLicenses ?? 0} banned</span>
+          <span className="stat-sub">{servers.length} total registered</span>
         </div>
 
         <div className="stat-card">
-          <span className="stat-label">Active Player Bans</span>
-          <span className="stat-value" style={{ color: 'var(--primary)' }}>
-            {stats?.totalPlayerBans ?? stats?.activeBans ?? 0}
+          <span className="stat-label">Players Online</span>
+          <span className="stat-value" style={{ color: '#fff' }}>
+            {allOnlinePlayers.length}
           </span>
-          <span className="stat-sub">{violations.length} violations logged</span>
+          <span className="stat-sub">Across all servers</span>
+        </div>
+
+        <div className="stat-card">
+          <span className="stat-label">Violations Flagged</span>
+          <span className="stat-value" style={{ color: 'var(--yellow)' }}>
+            {violations.length}
+          </span>
+          <span className="stat-sub">{playerBans.filter(b => b.status === 'ACTIVE').length} active bans</span>
+        </div>
+      </div>
+
+      {/* Public Download Banner */}
+      <div className="glass-panel" style={{
+        marginBottom: '24px',
+        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(255, 26, 42, 0.05) 100%)',
+        borderColor: 'rgba(59, 130, 246, 0.25)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📥 Public Plugin Download Link
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
+              Share this link with your players and server owners. Every download is tracked live in this panel!
+            </p>
+            <div className="mono" style={{
+              background: 'var(--bg-input)',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              marginTop: '10px',
+              border: '1px solid var(--border)',
+              display: 'inline-block',
+              color: '#93c5fd'
+            }}>
+              {downloadUrl}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button className="btn btn-secondary" onClick={copyDownloadLink}>
+              {copiedLink ? '✅ Link Copied!' : '📋 Copy Download Link'}
+            </button>
+            <a href="/download" className="btn btn-primary" download>
+              ⬇️ Download JAR
+            </a>
+          </div>
         </div>
       </div>
 
       <div className="grid-2">
-        {/* Recent Violations */}
+        {/* Recent Downloads */}
         <div className="glass-panel">
           <div className="panel-header">
-            <h3 className="panel-title">🚨 Recent Violations Fleet-Wide</h3>
-            <button className="btn btn-ghost btn-sm" onClick={() => setActivePage('violations')}>
-              View All ({violations.length})
+            <h3 className="panel-title">📥 Recent Plugin Downloads</h3>
+            <button className="btn btn-ghost btn-sm" onClick={() => setActivePage('downloads')}>
+              View All ({downloadData.totalDownloads})
             </button>
           </div>
-          {violations.length > 0 ? (
+          {downloadData.downloads && downloadData.downloads.length > 0 ? (
             <div className="table-container">
               <table className="nexora-table">
                 <thead>
                   <tr>
-                    <th>Player</th>
-                    <th>Server</th>
-                    <th>Check</th>
-                    <th>VL</th>
                     <th>Time</th>
+                    <th>User IP</th>
+                    <th>Client / Device</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {violations.slice(0, 6).map((v) => (
-                    <tr key={v.id}>
-                      <td className="player-cell">
-                        <img
-                          className="player-avatar"
-                          src={`https://mc-heads.net/avatar/${v.playerName}/24`}
-                          alt={v.playerName}
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                        <span>{v.playerName}</span>
-                      </td>
+                  {downloadData.downloads.slice(0, 5).map((d) => (
+                    <tr key={d.id}>
                       <td style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                        {v.serverName || 'Minecraft Server'}
+                        {formatDate(d.timestamp)}
                       </td>
-                      <td>
-                        <span className="badge badge-warning">{v.checkId}</span>
-                      </td>
-                      <td className="mono" style={{ color: 'var(--primary)', fontWeight: 700 }}>
-                        +{Math.round(v.vl)}
+                      <td className="mono" style={{ fontSize: '12px', color: 'var(--blue)' }}>
+                        {d.ip}
                       </td>
                       <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        {formatDate(v.timestamp)}
+                        {d.userAgent ? d.userAgent.slice(0, 32) + '…' : 'Browser'}
                       </td>
                     </tr>
                   ))}
@@ -234,17 +315,17 @@ export default function AdminDashboard({ user, onLogout }) {
             </div>
           ) : (
             <div className="empty-state">
-              <p>No violations flagged recently.</p>
+              <p>No downloads recorded yet. Share your download link to see downloads!</p>
             </div>
           )}
         </div>
 
-        {/* Server Fleet Quick Status */}
+        {/* Server Fleet Summary */}
         <div className="glass-panel">
           <div className="panel-header">
-            <h3 className="panel-title">🖥️ Server Fleet Status</h3>
+            <h3 className="panel-title">🖥️ Connected Servers ({servers.length})</h3>
             <button className="btn btn-ghost btn-sm" onClick={() => setActivePage('servers')}>
-              Manage Fleet ({servers.length})
+              Manage Fleet
             </button>
           </div>
           {servers.length > 0 ? (
@@ -259,11 +340,11 @@ export default function AdminDashboard({ user, onLogout }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {servers.slice(0, 6).map((s) => (
+                  {servers.slice(0, 5).map((s) => (
                     <tr key={s.id}>
-                      <td style={{ fontWeight: 600 }}>{s.serverName}</td>
+                      <td style={{ fontWeight: 700 }}>{s.serverName}</td>
                       <td className="mono" style={{ color: tpsColor(s.tps) }}>
-                        {s.isOnline ? `${(s.tps || 20).toFixed(1)}` : '—'}
+                        {s.isOnline ? (s.tps != null ? Number(s.tps).toFixed(1) : '20.0') : '—'}
                       </td>
                       <td>{s.isOnline ? (s.onlinePlayers ?? 0) : 0}</td>
                       <td>
@@ -278,7 +359,7 @@ export default function AdminDashboard({ user, onLogout }) {
             </div>
           ) : (
             <div className="empty-state">
-              <p>No Minecraft servers have connected yet.</p>
+              <p>No servers connected yet. Install the plugin JAR on your server to connect!</p>
             </div>
           )}
         </div>
@@ -286,13 +367,109 @@ export default function AdminDashboard({ user, onLogout }) {
     </>
   );
 
-  // 2. Server Fleet
+  // 2. Plugin Downloads Tracker (Specific User Request!)
+  const renderDownloads = () => (
+    <>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Plugin Downloads Tracker</h1>
+          <p className="page-desc">Live statistics and history of users downloading your Nexora AntiCheat plugin.</p>
+        </div>
+        <div className="badge badge-blue">
+          {downloadData.totalDownloads} Total Download{downloadData.totalDownloads !== 1 ? 's' : ''}
+        </div>
+      </div>
+
+      <div className="grid-3" style={{ marginBottom: '24px' }}>
+        <div className="stat-card">
+          <span className="stat-label">Total Downloads</span>
+          <span className="stat-value" style={{ color: 'var(--blue)' }}>
+            {downloadData.totalDownloads}
+          </span>
+          <span className="stat-sub">Verified downloads served</span>
+        </div>
+
+        <div className="stat-card">
+          <span className="stat-label">Plugin Binary</span>
+          <span className="stat-value" style={{ fontSize: '20px', marginTop: '4px' }}>
+            NexoraAntiCheat.jar
+          </span>
+          <span className="stat-sub">Paper / Folia 1.20 - 1.21+</span>
+        </div>
+
+        <div className="stat-card">
+          <span className="stat-label">Direct Download Link</span>
+          <div style={{ marginTop: '6px' }}>
+            <button className="btn btn-primary btn-sm btn-full" onClick={copyDownloadLink}>
+              {copiedLink ? '✅ Link Copied!' : '📋 Copy Download URL'}
+            </button>
+          </div>
+          <span className="stat-sub">{downloadUrl}</span>
+        </div>
+      </div>
+
+      {/* Download History Table */}
+      <div className="glass-panel">
+        <div className="panel-header">
+          <h3 className="panel-title">📥 Download Logs ({downloadData.downloads.length})</h3>
+          <a href="/download" className="btn btn-secondary btn-sm" download>
+            ⬇️ Test Download (.jar)
+          </a>
+        </div>
+
+        {downloadData.downloads && downloadData.downloads.length > 0 ? (
+          <div className="table-container">
+            <table className="nexora-table">
+              <thead>
+                <tr>
+                  <th>Download ID</th>
+                  <th>IP Address</th>
+                  <th>Client / Browser User-Agent</th>
+                  <th>Timestamp</th>
+                  <th>Delivered File</th>
+                </tr>
+              </thead>
+              <tbody>
+                {downloadData.downloads.map((d) => (
+                  <tr key={d.id}>
+                    <td className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {d.id}
+                    </td>
+                    <td className="mono" style={{ color: 'var(--blue)', fontWeight: 700 }}>
+                      {d.ip}
+                    </td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {d.userAgent || 'Direct Web Download'}
+                    </td>
+                    <td style={{ fontSize: '12px' }}>
+                      {formatDate(d.timestamp)}
+                    </td>
+                    <td>
+                      <span className="badge badge-green">NexoraAntiCheat-1.0.0.jar</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-state-icon">📥</div>
+            <h3>No Download Events Recorded Yet</h3>
+            <p>Share your public download link <code>{downloadUrl}</code> to start tracking downloads.</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  // 3. Server Fleet
   const renderServerFleet = () => (
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Server Fleet</h1>
-          <p className="page-desc">All Minecraft servers licensed with Nexora AntiCheat.</p>
+          <h1 className="page-title">Connected Server Fleet</h1>
+          <p className="page-desc">Every Minecraft server running your Nexora AntiCheat plugin.</p>
         </div>
       </div>
 
@@ -308,8 +485,8 @@ export default function AdminDashboard({ user, onLogout }) {
                 <tr>
                   <th>Server Name</th>
                   <th>Host IP:Port</th>
-                  <th>License Key</th>
-                  <th>MC Version</th>
+                  <th>Minecraft Core</th>
+                  <th>Plugin Version</th>
                   <th>TPS</th>
                   <th>Players</th>
                   <th>Status</th>
@@ -323,16 +500,8 @@ export default function AdminDashboard({ user, onLogout }) {
                     <td className="mono" style={{ fontSize: '12px' }}>
                       {s.ip}:{s.port}
                     </td>
-                    <td className="mono" style={{ fontSize: '11px' }}>
-                      <span
-                        onClick={() => copyToClipboard(s.licenseKey)}
-                        style={{ cursor: 'pointer', color: 'var(--blue)' }}
-                        title="Click to copy"
-                      >
-                        {s.licenseKey}
-                      </span>
-                    </td>
                     <td style={{ fontSize: '12px' }}>{s.mcVersion}</td>
+                    <td className="mono" style={{ fontSize: '12px' }}>{s.pluginVersion}</td>
                     <td className="mono" style={{ color: tpsColor(s.tps), fontWeight: 700 }}>
                       {s.isOnline ? (s.tps != null ? Number(s.tps).toFixed(1) : '20.0') : '—'}
                     </td>
@@ -349,7 +518,7 @@ export default function AdminDashboard({ user, onLogout }) {
                             type="text"
                             className="input-field"
                             style={{ padding: '4px 8px', fontSize: '11px', width: '130px' }}
-                            placeholder="Ban reason..."
+                            placeholder="Reason..."
                             value={banReason}
                             onChange={(e) => setBanReason(e.target.value)}
                           />
@@ -384,31 +553,30 @@ export default function AdminDashboard({ user, onLogout }) {
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">🖥️</div>
-            <h3>No Servers Connected</h3>
-            <p>Servers will appear here automatically when they start with the Nexora plugin.</p>
+            <h3>No Servers Connected Yet</h3>
+            <p>Servers will appear here automatically when they run your Nexora AntiCheat plugin.</p>
           </div>
         )}
       </div>
     </>
   );
 
-  // 3. Server Plugins (Specific user requirement!)
+  // 4. Server Plugins (Specific user requirement!)
   const renderPlugins = () => {
-    // Filter plugins by search
     const searchLower = pluginSearch.toLowerCase().trim();
 
     return (
       <>
         <div className="page-header">
           <div>
-            <h1 className="page-title">Server Plugins Detected</h1>
-            <p className="page-desc">List of all plugins running on connected Minecraft servers.</p>
+            <h1 className="page-title">Inspect Server Plugins</h1>
+            <p className="page-desc">View all installed plugins detected on each connected Minecraft server.</p>
           </div>
           <div style={{ minWidth: '260px' }}>
             <input
               type="text"
               className="input-field"
-              placeholder="🔍 Filter plugins by name..."
+              placeholder="🔍 Search plugins by name..."
               value={pluginSearch}
               onChange={(e) => setPluginSearch(e.target.value)}
             />
@@ -435,7 +603,7 @@ export default function AdminDashboard({ user, onLogout }) {
                     </div>
                   </div>
                   <div className="badge badge-blue">
-                    {pluginList.length} Plugin{pluginList.length !== 1 ? 's' : ''} Installed
+                    {pluginList.length} Plugin{pluginList.length !== 1 ? 's' : ''} Detected
                   </div>
                 </div>
 
@@ -471,7 +639,7 @@ export default function AdminDashboard({ user, onLogout }) {
                     <p>
                       {searchLower
                         ? `No plugins matching "${pluginSearch}".`
-                        : 'No plugin telemetry reported yet. Ensure server heartbeat sends plugin list.'}
+                        : 'No plugin telemetry received yet. Heartbeats will populate the plugin list.'}
                     </p>
                   </div>
                 )}
@@ -481,189 +649,76 @@ export default function AdminDashboard({ user, onLogout }) {
         ) : (
           <div className="glass-panel empty-state">
             <div className="empty-state-icon">🔌</div>
-            <h3>No Servers Online to Report Plugins</h3>
-            <p>Connect your Minecraft server to inspect its installed plugin list.</p>
+            <h3>No Servers Connected</h3>
+            <p>Connect your Minecraft server to inspect its installed plugins.</p>
           </div>
         )}
       </>
     );
   };
 
-  // 4. Registered Users
-  const renderUsers = () => (
+  // 5. Online Players
+  const renderPlayers = () => (
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Registered Users</h1>
-          <p className="page-desc">All user accounts registered and stored in Supabase PostgreSQL.</p>
+          <h1 className="page-title">Live In-Game Players</h1>
+          <p className="page-desc">Every player actively in-game across all connected servers.</p>
         </div>
-        <div className="badge badge-blue">
-          {users.length} Registered Account{users.length !== 1 ? 's' : ''}
+        <div className="badge badge-green">
+          {allOnlinePlayers.length} Active Player{allOnlinePlayers.length !== 1 ? 's' : ''}
         </div>
-      </div>
-
-      <div className="glass-panel">
-        {users.length > 0 ? (
-          <div className="table-container">
-            <table className="nexora-table">
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>License Key</th>
-                  <th>Role</th>
-                  <th>Registered At</th>
-                  <th>Last Login</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td style={{ fontWeight: 700 }}>
-                      <span className="player-cell">
-                        <span style={{
-                          width: '24px', height: '24px', borderRadius: '6px',
-                          background: u.role === 'ADMIN' ? 'var(--primary)' : '#1e2533',
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '11px', fontWeight: 800
-                        }}>
-                          {u.username.charAt(0).toUpperCase()}
-                        </span>
-                        {u.username}
-                      </span>
-                    </td>
-                    <td className="mono" style={{ fontSize: '12px' }}>
-                      <span
-                        onClick={() => copyToClipboard(u.licenseKey)}
-                        style={{ cursor: 'pointer', color: 'var(--blue)' }}
-                        title="Click to copy"
-                      >
-                        {u.licenseKey}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`badge ${u.role === 'ADMIN' ? 'badge-danger' : 'badge-green'}`}>
-                        {u.role || 'USER'}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {formatDate(u.createdAt)}
-                    </td>
-                    <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {formatDate(u.lastLogin)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="empty-state">
-            <p>No user accounts have registered yet.</p>
-          </div>
-        )}
-      </div>
-    </>
-  );
-
-  // 5. License Keys
-  const renderLicenses = () => (
-    <>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">License Keys Authority</h1>
-          <p className="page-desc">Issue, monitor, and revoke buyer server licenses.</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setShowKeyGen(true)}>
-          ⚡ + Generate New License
-        </button>
       </div>
 
       {actionAlert && (
         <div className={`alert alert-${actionAlert.type}`}>{actionAlert.text}</div>
       )}
 
-      <div className="glass-panel">
-        {licenses.length > 0 ? (
-          <div className="table-container">
-            <table className="nexora-table">
-              <thead>
-                <tr>
-                  <th>License Key</th>
-                  <th>Buyer / Owner</th>
-                  <th>Tier</th>
-                  <th>Bound IP</th>
-                  <th>Max Hosts</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {licenses.map((lic) => {
-                  const isBanned = lic.status === 'BANNED';
-                  return (
-                    <tr key={lic.key}>
-                      <td className="mono" style={{ fontWeight: 700, fontSize: '12px' }}>
-                        <span
-                          onClick={() => copyToClipboard(lic.key)}
-                          style={{ cursor: 'pointer', color: '#fff' }}
-                          title="Click to copy key"
-                        >
-                          📋 {lic.key}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 600 }}>{lic.owner}</div>
-                        {lic.email && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{lic.email}</div>}
-                      </td>
-                      <td>
-                        <span className="badge badge-red">{lic.tier}</span>
-                      </td>
-                      <td className="mono" style={{ fontSize: '12px' }}>
-                        {lic.boundIp || <span style={{ color: 'var(--text-dim)' }}>Unbound</span>}
-                      </td>
-                      <td className="mono">{lic.maxServers || 1}</td>
-                      <td>
-                        <span className={`badge ${isBanned ? 'badge-danger' : 'badge-green'}`}>
-                          {lic.status}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => handleResetIp(lic.key)}
-                            title="Clear IP binding"
-                          >
-                            Reset IP
-                          </button>
-                          <button
-                            className={`btn btn-sm ${isBanned ? 'btn-success' : 'btn-danger'}`}
-                            onClick={() => handleToggleLicenseStatus(lic.key)}
-                          >
-                            {isBanned ? 'Unban' : 'Ban'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">🔑</div>
-            <h3>No Licenses Issued</h3>
-            <p>Click "Generate New License" to issue your first buyer license.</p>
-          </div>
-        )}
-      </div>
-
-      <KeyGeneratorModal
-        isOpen={showKeyGen}
-        onClose={() => setShowKeyGen(false)}
-        onCreated={() => fetchData()}
-      />
+      {allOnlinePlayers.length > 0 ? (
+        <div className="glass-panel">
+          {allOnlinePlayers.map((p, idx) => (
+            <div className="player-row" key={idx}>
+              <div className="player-identity">
+                <img
+                  className="player-avatar-large"
+                  src={`https://mc-heads.net/avatar/${p.name}/40`}
+                  alt={p.name}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <div>
+                  <div className="player-name">{p.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Playing on {p.serverName} ({p.serverIp})
+                  </div>
+                </div>
+              </div>
+              <div className="player-actions">
+                <button
+                  className="btn btn-warning btn-sm"
+                  onClick={() => handleKickPlayer(p.name)}
+                >
+                  ⚡ Kick
+                </button>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => {
+                    setNewBanPlayer(p.name);
+                    setActivePage('bans');
+                  }}
+                >
+                  🔨 Ban
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="glass-panel empty-state">
+          <div className="empty-state-icon">👥</div>
+          <h3>No Players Online</h3>
+          <p>When players join any Minecraft server running your plugin, they appear here live with Kick & Ban controls.</p>
+        </div>
+      )}
     </>
   );
 
@@ -673,10 +728,10 @@ export default function AdminDashboard({ user, onLogout }) {
       <div className="page-header">
         <div>
           <h1 className="page-title">Global Violation Logs</h1>
-          <p className="page-desc">Every detection event flagged across all servers in the fleet.</p>
+          <p className="page-desc">All anti-cheat checks triggered across every Minecraft server.</p>
         </div>
         <div className="badge badge-yellow">
-          {violations.length} Total Incidents
+          {violations.length} Incident{violations.length !== 1 ? 's' : ''}
         </div>
       </div>
 
@@ -706,14 +761,16 @@ export default function AdminDashboard({ user, onLogout }) {
                       />
                       <span>{v.playerName}</span>
                     </td>
-                    <td>{v.serverName}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {v.serverName}
+                    </td>
                     <td>
                       <span className="badge badge-warning">{v.checkId}</span>
                     </td>
                     <td className="mono" style={{ color: 'var(--primary)', fontWeight: 800 }}>
                       +{Math.round(v.vl)}
                     </td>
-                    <td style={{ color: 'var(--text-muted)' }}>{v.details}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{v.details}</td>
                     <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                       {formatDate(v.timestamp)}
                     </td>
@@ -724,7 +781,7 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
         ) : (
           <div className="empty-state">
-            <p>No cheat violations recorded across the fleet.</p>
+            <p>No cheat violations flagged yet.</p>
           </div>
         )}
       </div>
@@ -736,15 +793,46 @@ export default function AdminDashboard({ user, onLogout }) {
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Global Player Bans</h1>
-          <p className="page-desc">Every player ban issued across all Minecraft servers.</p>
-        </div>
-        <div className="badge badge-red">
-          {playerBans.length} Ban{playerBans.length !== 1 ? 's' : ''}
+          <h1 className="page-title">Player Bans Management</h1>
+          <p className="page-desc">Issue bans or unban players across all servers.</p>
         </div>
       </div>
 
+      {actionAlert && (
+        <div className={`alert alert-${actionAlert.type}`}>{actionAlert.text}</div>
+      )}
+
+      {/* Manual Ban Form */}
+      <div className="glass-panel" style={{ marginBottom: '24px' }}>
+        <h3 className="panel-title" style={{ marginBottom: '14px' }}>
+          🔨 Ban A Player
+        </h3>
+        <form onSubmit={handleBanPlayer} className="grid-2">
+          <input
+            type="text"
+            className="input-field"
+            placeholder="Player username..."
+            value={newBanPlayer}
+            onChange={(e) => setNewBanPlayer(e.target.value)}
+            required
+          />
+          <input
+            type="text"
+            className="input-field"
+            placeholder="Reason for ban..."
+            value={newBanReason}
+            onChange={(e) => setNewBanReason(e.target.value)}
+          />
+          <button type="submit" className="btn btn-danger">
+            🔨 Execute Ban
+          </button>
+        </form>
+      </div>
+
       <div className="glass-panel">
+        <h3 className="panel-title" style={{ marginBottom: '14px' }}>
+          📋 Ban Records ({playerBans.length})
+        </h3>
         {playerBans.length > 0 ? (
           <div className="table-container">
             <table className="nexora-table">
@@ -755,9 +843,9 @@ export default function AdminDashboard({ user, onLogout }) {
                   <th>Reason</th>
                   <th>Duration</th>
                   <th>Banned By</th>
-                  <th>IP Ban</th>
                   <th>Date</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -772,17 +860,12 @@ export default function AdminDashboard({ user, onLogout }) {
                       />
                       <span>{b.playerName}</span>
                     </td>
-                    <td>{b.serverName || 'Server'}</td>
+                    <td>{b.serverName || 'All'}</td>
                     <td>{b.reason}</td>
                     <td>
                       <span className="badge badge-gray">{b.duration}</span>
                     </td>
                     <td>{b.bannedBy || 'Admin'}</td>
-                    <td>
-                      <span className={`badge ${b.ipBanned ? 'badge-danger' : 'badge-gray'}`}>
-                        {b.ipBanned ? 'YES' : 'NO'}
-                      </span>
-                    </td>
                     <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                       {formatDate(b.bannedAt)}
                     </td>
@@ -791,6 +874,18 @@ export default function AdminDashboard({ user, onLogout }) {
                         {b.status}
                       </span>
                     </td>
+                    <td>
+                      {b.status === 'ACTIVE' ? (
+                        <button
+                          className="btn btn-success btn-sm"
+                          onClick={() => handleUnbanPlayer(b.id)}
+                        >
+                          Unban
+                        </button>
+                      ) : (
+                        <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>Unbanned</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -798,21 +893,77 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
         ) : (
           <div className="empty-state">
-            <p>No player bans recorded across the fleet.</p>
+            <p>No player bans recorded.</p>
           </div>
         )}
       </div>
     </>
   );
 
+  // 8. Admin Accounts
+  const renderAdmins = () => (
+    <>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Admin Accounts</h1>
+          <p className="page-desc">All administrator users authorized on this panel.</p>
+        </div>
+      </div>
+
+      <div className="glass-panel">
+        <div className="table-container">
+          <table className="nexora-table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Created At</th>
+                <th>Last Login</th>
+              </tr>
+            </thead>
+            <tbody>
+              {admins.map((a) => (
+                <tr key={a.id}>
+                  <td style={{ fontWeight: 700 }}>
+                    <span className="player-cell">
+                      <span style={{
+                        width: '26px', height: '26px', borderRadius: '6px',
+                        background: 'var(--primary)', color: '#fff',
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '11px', fontWeight: 800
+                      }}>
+                        ⚡
+                      </span>
+                      {a.username}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="badge badge-danger">ADMINISTRATOR</span>
+                  </td>
+                  <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    {formatDate(a.createdAt)}
+                  </td>
+                  <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    {formatDate(a.lastLogin)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+
   const pages = {
     overview: renderOverview,
+    downloads: renderDownloads,
     servers: renderServerFleet,
     plugins: renderPlugins,
-    users: renderUsers,
-    licenses: renderLicenses,
+    players: renderPlayers,
     violations: renderViolations,
     bans: renderPlayerBans,
+    admins: renderAdmins,
   };
 
   return (
@@ -828,7 +979,7 @@ export default function AdminDashboard({ user, onLogout }) {
         </div>
 
         <nav className="sidebar-nav">
-          <div className="nav-section-label">Fleet Administration</div>
+          <div className="nav-section-label">Management</div>
           {ADMIN_NAV.map((item) => (
             <button
               key={item.key}
@@ -845,7 +996,7 @@ export default function AdminDashboard({ user, onLogout }) {
           <div className="sidebar-user-card">
             <div className="sidebar-user-avatar">⚡</div>
             <div className="sidebar-user-info">
-              <div className="sidebar-username">{user?.username || 'Administrator'}</div>
+              <div className="sidebar-username">{user?.username || 'Admin'}</div>
               <div className="sidebar-license-preview">ROOT PRIVILEGES</div>
             </div>
           </div>

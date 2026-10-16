@@ -8,7 +8,6 @@ const {
   initDatabase,
   readData,
   writeData,
-  generateLicenseKey,
   hashPassword,
   verifyPassword
 } = require('./database');
@@ -19,10 +18,29 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Public static assets & JAR download directory
+const publicDir = path.join(__dirname, 'public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
+}
+
 // Serve compiled frontend UI if available
 const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
 if (fs.existsSync(frontendDist)) {
   app.use(express.static(frontendDist));
+}
+
+// Path to compiled Minecraft plugin JAR file
+const JAR_PATHS = [
+  path.join(publicDir, 'NexoraAntiCheat-1.0.0.jar'),
+  path.join(__dirname, '..', '..', 'target', 'nexora-anticheat-1.0.0.jar')
+];
+
+function getPluginJarPath() {
+  for (const p of JAR_PATHS) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
 }
 
 // Helper to determine if a server is currently online (heartbeat within 2.5 minutes)
@@ -41,93 +59,105 @@ function calculateExpiry(duration) {
 }
 
 // -------------------------------------------------------------
-// 1. MINECRAFT PLUGIN API ENDPOINTS
+// 1. PUBLIC PLUGIN DOWNLOAD & TRACKING (TRACK HOW MANY USERS DOWNLOAD)
+// -------------------------------------------------------------
+
+function recordDownload(req) {
+  const data = readData();
+  data.downloads = data.downloads || [];
+  data.totalDownloads = (data.totalDownloads || 0) + 1;
+
+  const clientIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1').replace('::ffff:', '');
+  const userAgent = req.headers['user-agent'] || 'Browser / Direct Download';
+
+  const downloadRecord = {
+    id: 'dl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+    ip: clientIp,
+    userAgent: userAgent.slice(0, 200),
+    timestamp: Date.now()
+  };
+
+  data.downloads.unshift(downloadRecord);
+  if (data.downloads.length > 500) {
+    data.downloads = data.downloads.slice(0, 500);
+  }
+
+  writeData(data);
+  return downloadRecord;
+}
+
+/**
+ * Public Download route: /download or /api/download
+ * Increments download counter, logs user info, and sends JAR file.
+ */
+app.get(['/download', '/api/download', '/api/download/nexora-anticheat.jar'], (req, res) => {
+  const jarPath = getPluginJarPath();
+
+  // Record this download in database
+  recordDownload(req);
+
+  if (jarPath && fs.existsSync(jarPath)) {
+    res.download(jarPath, 'NexoraAntiCheat-1.0.0.jar', (err) => {
+      if (err && !res.headersSent) {
+        res.redirect('https://github.com/yuonsovann5656-netizen/Nexora-AntiCheat/releases/download/v1.0.0/NexoraAntiCheat-1.0.0.jar');
+      }
+    });
+  } else {
+    // Redirect to direct GitHub release binary
+    res.redirect('https://github.com/yuonsovann5656-netizen/Nexora-AntiCheat/releases/download/v1.0.0/NexoraAntiCheat-1.0.0.jar');
+  }
+});
+
+// -------------------------------------------------------------
+// 2. MINECRAFT SERVER TELEMETRY (NO LICENSE KEY REQUIRED - FREE)
 // -------------------------------------------------------------
 
 /**
- * Verification on plugin startup.
+ * Server startup verification & registration.
+ * Completely free — no license key required.
  * POST /api/license/verify
  */
 app.post('/api/license/verify', (req, res) => {
-  const { key, serverName, port, mcVersion, pluginVersion, ipOverride } = req.body;
-  const clientIp = ipOverride || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-
-  if (!key) {
-    return res.status(400).json({ valid: false, reason: 'KEY_MISSING', message: 'License key is missing.' });
-  }
+  const { serverName, port, mcVersion, pluginVersion, ipOverride } = req.body;
+  const clientIp = (ipOverride || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1').replace('::ffff:', '');
 
   const data = readData();
-  const license = data.licenses.find(l => l.key.toUpperCase() === key.trim().toUpperCase());
+  data.servers = data.servers || [];
 
-  if (!license) {
-    return res.status(403).json({
-      valid: false,
-      reason: 'LICENSE_NOT_FOUND',
-      message: 'License key not recognized by Nexora Licensing Authority.'
-    });
-  }
+  const sName = (serverName || 'Minecraft Server').trim();
+  const sPort = Number(port) || 25565;
 
-  if (license.status === 'BANNED') {
-    return res.status(403).json({
-      valid: false,
-      reason: 'LICENSE_BANNED',
-      message: `License key has been BANNED by Nexora Administration. Reason: ${license.banReason || 'Policy Violation'}`
-    });
-  }
+  // Find or register server by IP + port or name
+  let server = data.servers.find(s => (s.ip === clientIp && s.port === sPort) || s.serverName === sName);
 
-  if (license.status === 'REVOKED') {
-    return res.status(403).json({
-      valid: false,
-      reason: 'LICENSE_REVOKED',
-      message: 'License key has been revoked by administration.'
-    });
-  }
-
-  if (license.expiresAt && Date.now() > license.expiresAt) {
-    return res.status(403).json({
-      valid: false,
-      reason: 'LICENSE_EXPIRED',
-      message: 'License key subscription has expired.'
-    });
-  }
-
-  // IP Binding check (strictly 1 server per key if maxServers === 1)
-  const normalizedClientIp = clientIp.replace('::ffff:', '');
-  if (!license.boundIp) {
-    // Bind to this first server IP
-    license.boundIp = normalizedClientIp;
-  } else if (license.boundIp !== normalizedClientIp && license.boundIp !== '127.0.0.1' && normalizedClientIp !== '127.0.0.1') {
-    if (license.maxServers <= 1) {
-      return res.status(403).json({
-        valid: false,
-        reason: 'IP_MISMATCH',
-        message: `License is already bound to another host (${license.boundIp}). Please reset IP binding on your Buyer Portal before migrating.`
-      });
-    }
-  }
-
-  // Register or update server record
-  let server = data.servers.find(s => s.licenseKey === license.key);
   if (!server) {
     server = {
       id: 'srv_' + Math.random().toString(36).substr(2, 9),
-      licenseKey: license.key,
-      serverName: serverName || 'Minecraft Server',
-      ip: normalizedClientIp,
-      port: port || 25565,
-      mcVersion: mcVersion || 'Paper 26.2',
+      serverName: sName,
+      ip: clientIp,
+      port: sPort,
+      mcVersion: mcVersion || 'Paper 1.20+',
       pluginVersion: pluginVersion || '1.0.0',
       onlinePlayers: 0,
       tps: 20.0,
       status: 'ONLINE',
       lastHeartbeat: Date.now(),
-      firstSeen: Date.now()
+      firstSeen: Date.now(),
+      plugins: [],
+      playerNames: []
     };
     data.servers.push(server);
   } else {
-    server.serverName = serverName || server.serverName;
-    server.ip = normalizedClientIp;
-    server.port = port || server.port;
+    if (server.status === 'BANNED') {
+      return res.status(403).json({
+        valid: false,
+        reason: 'SERVER_BANNED',
+        message: 'This server has been suspended by Nexora Administration.'
+      });
+    }
+    server.serverName = sName;
+    server.ip = clientIp;
+    server.port = sPort;
     server.mcVersion = mcVersion || server.mcVersion;
     server.pluginVersion = pluginVersion || server.pluginVersion;
     server.status = 'ONLINE';
@@ -138,42 +168,45 @@ app.post('/api/license/verify', (req, res) => {
 
   return res.json({
     valid: true,
-    owner: license.owner,
-    tier: license.tier,
     serverId: server.id,
-    boundIp: license.boundIp,
-    message: 'License successfully validated.'
+    serverName: server.serverName,
+    tier: 'FREE_COMMUNITY',
+    message: 'Nexora AntiCheat verified successfully.'
   });
 });
 
 /**
- * Periodic Heartbeat from running Minecraft server (every 60-120s).
+ * Periodic Heartbeat from running Minecraft server.
  * POST /api/license/heartbeat
  */
 app.post('/api/license/heartbeat', (req, res) => {
-  const { key, onlinePlayers, tps, recentViolations, playerNames, plugins } = req.body;
-  if (!key) {
-    return res.status(400).json({ valid: false, reason: 'KEY_MISSING' });
-  }
+  const { serverId, serverName, onlinePlayers, tps, recentViolations, playerNames, plugins } = req.body;
+  const clientIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1').replace('::ffff:', '');
 
   const data = readData();
-  const license = data.licenses.find(l => l.key.toUpperCase() === key.trim().toUpperCase());
+  data.servers = data.servers || [];
 
-  if (!license) {
-    return res.status(403).json({ valid: false, reason: 'LICENSE_NOT_FOUND' });
-  }
-
-  if (license.status === 'BANNED') {
-    return res.status(403).json({
-      valid: false,
-      reason: 'LICENSE_BANNED',
-      message: `Your server license was BANNED. Disabling Nexora AntiCheat protection.`
-    });
-  }
-
-  // Update server state
-  let server = data.servers.find(s => s.licenseKey === license.key);
-  if (server) {
+  // Match server
+  let server = data.servers.find(s => s.id === serverId || (s.ip === clientIp && s.serverName === serverName));
+  if (!server) {
+    server = {
+      id: serverId || ('srv_' + Math.random().toString(36).substr(2, 9)),
+      serverName: serverName || 'Minecraft Server',
+      ip: clientIp,
+      port: 25565,
+      mcVersion: 'Paper 1.20+',
+      pluginVersion: '1.0.0',
+      onlinePlayers: Number(onlinePlayers || 0),
+      tps: Number(tps || 20.0),
+      status: 'ONLINE',
+      lastHeartbeat: Date.now(),
+      firstSeen: Date.now()
+    };
+    data.servers.push(server);
+  } else {
+    if (server.status === 'BANNED') {
+      return res.status(403).json({ valid: false, reason: 'SERVER_BANNED' });
+    }
     if (onlinePlayers !== undefined) server.onlinePlayers = Number(onlinePlayers);
     if (tps !== undefined) server.tps = Math.round(Number(tps) * 100) / 100;
     if (Array.isArray(playerNames)) server.playerNames = playerNames;
@@ -182,178 +215,74 @@ app.post('/api/license/heartbeat', (req, res) => {
     server.status = 'ONLINE';
   }
 
-  // Ingest any cheat violations reported by the server
+  // Ingest violations reported by server
   if (Array.isArray(recentViolations) && recentViolations.length > 0) {
+    data.violations = data.violations || [];
     for (const v of recentViolations) {
       data.violations.unshift({
         id: 'viol_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-        licenseKey: license.key,
-        serverName: server ? server.serverName : 'Minecraft Server',
+        serverName: server.serverName,
         playerName: v.playerName || 'Unknown',
         checkId: v.checkId || 'Combat/Movement',
         vl: Number(v.vl || 1.0),
-        details: v.details || 'Violation flagged',
+        details: v.details || 'Cheat violation flagged',
         timestamp: v.timestamp || Date.now()
       });
     }
-    // Cap in-memory history to latest 1000 records
     if (data.violations.length > 1000) {
       data.violations = data.violations.slice(0, 1000);
     }
   }
 
+  // Pending kicks for this server
+  data.pendingKicks = data.pendingKicks || [];
+  const pendingKicks = data.pendingKicks.filter(k => k.status === 'PENDING');
+  pendingKicks.forEach(k => { k.status = 'DELIVERED'; });
+
   writeData(data);
 
-  // Return active player bans for this server so plugin can enforce in-game
+  // Active player bans
   const activeBans = (data.playerBans || [])
-    .filter(b => b.licenseKey === license.key && b.status === 'ACTIVE')
+    .filter(b => b.status === 'ACTIVE')
     .map(b => ({ playerName: b.playerName, reason: b.reason, ipBanned: b.ipBanned }));
-
-  // Return pending kicks for this server and mark as delivered
-  data.pendingKicks = data.pendingKicks || [];
-  const pendingKicks = data.pendingKicks
-    .filter(k => k.licenseKey === license.key && k.status === 'PENDING');
-  pendingKicks.forEach(k => { k.status = 'DELIVERED'; });
-  if (pendingKicks.length > 0) writeData(data);
 
   return res.json({
     status: 'OK',
-    serverStatus: license.status,
+    valid: true,
+    serverStatus: server.status,
     activeBans,
     pendingKicks: pendingKicks.map(k => ({ playerName: k.playerName, reason: k.reason }))
   });
 });
 
 // -------------------------------------------------------------
-// 2. USER AUTHENTICATION (SIGNUP & LOGIN)
+// 3. ADMIN AUTHENTICATION (NO LICENSE KEY - USERNAME & PASSWORD ONLY)
 // -------------------------------------------------------------
 
 /**
- * User Registration (Signup)
- * POST /api/auth/signup
- * Fields: username, password, confirmPassword, licenseKey
- */
-app.post('/api/auth/signup', (req, res) => {
-  const { username, password, confirmPassword, licenseKey } = req.body;
-
-  if (!username || !password || !confirmPassword || !licenseKey) {
-    return res.status(400).json({ error: 'All fields (Username, Password, Confirm Password, License Key) are required.' });
-  }
-
-  const cleanUser = username.trim();
-  const cleanKey = licenseKey.trim().toUpperCase();
-
-  if (cleanUser.length < 3 || cleanUser.length > 32) {
-    return res.status(400).json({ error: 'Username must be between 3 and 32 characters.' });
-  }
-
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
-  }
-
-  if (password !== confirmPassword) {
-    return res.status(400).json({ error: 'Passwords do not match.' });
-  }
-
-  const data = readData();
-  data.users = data.users || [];
-  data.licenses = data.licenses || [];
-
-  // Check if username is taken
-  const existingUser = data.users.find(u => u.username.toLowerCase() === cleanUser.toLowerCase());
-  if (existingUser) {
-    return res.status(400).json({ error: `Username "${cleanUser}" is already taken.` });
-  }
-
-  // Check if license key is already registered to an account
-  const existingLicUser = data.users.find(u => u.licenseKey.toUpperCase() === cleanKey);
-  if (existingLicUser) {
-    return res.status(400).json({ error: 'This license key is already registered to another user account.' });
-  }
-
-  // Verify or auto-register the license key
-  let license = data.licenses.find(l => l.key.toUpperCase() === cleanKey);
-  if (!license) {
-    // If not in licenses table yet, create as buyer license
-    license = {
-      key: cleanKey,
-      owner: cleanUser,
-      email: null,
-      tier: 'LIFETIME',
-      status: 'ACTIVE',
-      boundIp: null,
-      maxServers: 1,
-      createdAt: Date.now(),
-      expiresAt: null,
-      banReason: null
-    };
-    data.licenses.push(license);
-  } else if (license.status === 'BANNED') {
-    return res.status(403).json({ error: `This license key has been BANNED: ${license.banReason || 'Policy Violation'}` });
-  }
-
-  // Hash password with salt
-  const { hash, salt } = hashPassword(password);
-
-  const newUser = {
-    id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-    username: cleanUser,
-    passwordHash: hash,
-    salt,
-    licenseKey: cleanKey,
-    role: 'USER',
-    createdAt: Date.now(),
-    lastLogin: Date.now()
-  };
-
-  data.users.push(newUser);
-  writeData(data);
-
-  return res.json({
-    success: true,
-    message: 'Account successfully registered! Please log in.',
-    user: {
-      id: newUser.id,
-      username: newUser.username,
-      licenseKey: newUser.licenseKey,
-      role: newUser.role
-    }
-  });
-});
-
-/**
- * User Login
+ * Admin Login
  * POST /api/auth/login
- * Fields: username, password, licenseKey
+ * Body: { username, password }
  */
 app.post('/api/auth/login', (req, res) => {
-  const { username, password, licenseKey } = req.body;
+  const { username, password } = req.body;
 
-  if (!username || !password || !licenseKey) {
-    return res.status(400).json({ error: 'Username, Password, and License Key are required.' });
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and Password are required.' });
   }
 
   const cleanUser = username.trim();
-  const cleanKey = licenseKey.trim().toUpperCase();
-
   const data = readData();
   data.users = data.users || [];
 
-  const user = data.users.find(
-    u => u.username.toLowerCase() === cleanUser.toLowerCase() && u.licenseKey.toUpperCase() === cleanKey
-  );
+  const user = data.users.find(u => u.username.toLowerCase() === cleanUser.toLowerCase());
 
   if (!user) {
-    return res.status(401).json({ error: 'Invalid credentials. Please verify your Username, Password, and License Key.' });
+    return res.status(401).json({ error: 'Invalid admin credentials.' });
   }
 
   if (!verifyPassword(password, user.passwordHash, user.salt)) {
     return res.status(401).json({ error: 'Incorrect password.' });
-  }
-
-  const license = (data.licenses || []).find(l => l.key.toUpperCase() === cleanKey);
-  if (license && license.status === 'BANNED') {
-    return res.status(403).json({ error: `Your license has been BANNED: ${license.banReason || 'Policy violation'}` });
   }
 
   user.lastLogin = Date.now();
@@ -364,251 +293,162 @@ app.post('/api/auth/login', (req, res) => {
     user: {
       id: user.id,
       username: user.username,
-      licenseKey: user.licenseKey,
-      role: user.role
+      role: 'ADMIN'
+    }
+  });
+});
+
+/**
+ * Admin Signup / Register
+ * POST /api/auth/signup
+ * Body: { username, password, confirmPassword }
+ */
+app.post('/api/auth/signup', (req, res) => {
+  const { username, password, confirmPassword } = req.body;
+
+  if (!username || !password || !confirmPassword) {
+    return res.status(400).json({ error: 'Username, Password, and Confirm Password are required.' });
+  }
+
+  const cleanUser = username.trim();
+
+  if (cleanUser.length < 3 || cleanUser.length > 32) {
+    return res.status(400).json({ error: 'Username must be between 3 and 32 characters.' });
+  }
+
+  if (password.length < 4) {
+    return res.status(400).json({ error: 'Password must be at least 4 characters.' });
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(400).json({ error: 'Passwords do not match.' });
+  }
+
+  const data = readData();
+  data.users = data.users || [];
+
+  const existing = data.users.find(u => u.username.toLowerCase() === cleanUser.toLowerCase());
+  if (existing) {
+    return res.status(400).json({ error: `Username "${cleanUser}" is already taken.` });
+  }
+
+  const { hash, salt } = hashPassword(password);
+
+  const newUser = {
+    id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    username: cleanUser,
+    passwordHash: hash,
+    salt,
+    role: 'ADMIN',
+    createdAt: Date.now(),
+    lastLogin: Date.now()
+  };
+
+  data.users.push(newUser);
+  writeData(data);
+
+  return res.json({
+    success: true,
+    message: 'Admin account created successfully! Please sign in.',
+    user: {
+      id: newUser.id,
+      username: newUser.username,
+      role: 'ADMIN'
     }
   });
 });
 
 // -------------------------------------------------------------
-// 3. USER (BUYER) PORTAL & BAN CONTROL API ENDPOINTS
+// 4. ADMIN PANEL FLEET & DOWNLOADS API ENDPOINTS
 // -------------------------------------------------------------
 
 /**
- * Load user dashboard data (server stats, violations, player bans)
- * POST /api/user/portal
+ * Plugin Downloads Tracker Stats & History
+ * GET /api/admin/downloads
  */
-app.post('/api/user/portal', (req, res) => {
-  const { key, username } = req.body;
-  if (!key) {
-    return res.status(400).json({ error: 'License key is required.' });
-  }
-
-  const cleanKey = key.trim().toUpperCase();
+app.get('/api/admin/downloads', (req, res) => {
   const data = readData();
-
-  const license = (data.licenses || []).find(l => l.key.toUpperCase() === cleanKey);
-  if (!license) {
-    return res.status(404).json({ error: 'License key does not exist.' });
-  }
-
-  const server = (data.servers || []).find(s => s.licenseKey === license.key);
-  const violations = (data.violations || []).filter(v => v.licenseKey === license.key).slice(0, 100);
-  const playerBans = (data.playerBans || []).filter(b => b.licenseKey === license.key);
-
   res.json({
-    license,
-    server: server ? { ...server, isOnline: isServerOnline(server) } : null,
-    violations,
-    playerBans,
-    onlinePlayerNames: (server && server.playerNames) || []
+    totalDownloads: data.totalDownloads || (data.downloads ? data.downloads.length : 0),
+    downloads: data.downloads || []
   });
 });
 
 /**
- * User bans a player on their own server
- * POST /api/user/players/ban
- * Fields: licenseKey, username, playerName, reason, duration, ipBanned
- */
-app.post('/api/user/players/ban', (req, res) => {
-  const { licenseKey, username, playerName, reason, duration, ipBanned } = req.body;
-
-  if (!licenseKey || !playerName) {
-    return res.status(400).json({ error: 'License key and player name are required.' });
-  }
-
-  const cleanKey = licenseKey.trim().toUpperCase();
-  const cleanPlayer = playerName.trim();
-  const data = readData();
-
-  const license = (data.licenses || []).find(l => l.key.toUpperCase() === cleanKey);
-  if (!license) {
-    return res.status(404).json({ error: 'License not found.' });
-  }
-
-  if (license.status === 'BANNED') {
-    return res.status(403).json({ error: 'Banned licenses cannot manage player bans.' });
-  }
-
-  data.playerBans = data.playerBans || [];
-
-  // Check if player is already active-banned
-  const existingBan = data.playerBans.find(
-    b => b.licenseKey === cleanKey && b.playerName.toLowerCase() === cleanPlayer.toLowerCase() && b.status === 'ACTIVE'
-  );
-
-  if (existingBan) {
-    return res.status(400).json({ error: `Player "${cleanPlayer}" is already banned on this server.` });
-  }
-
-  const server = (data.servers || []).find(s => s.licenseKey === cleanKey);
-
-  const newBan = {
-    id: 'pban_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-    licenseKey: cleanKey,
-    serverName: server ? server.serverName : 'Server',
-    playerName: cleanPlayer,
-    reason: (reason || '').trim() || 'Violating server rules / Cheat violation',
-    duration: duration || 'PERMANENT',
-    bannedBy: username || 'Server Owner',
-    ipBanned: Boolean(ipBanned),
-    bannedAt: Date.now(),
-    expiresAt: calculateExpiry(duration),
-    status: 'ACTIVE'
-  };
-
-  data.playerBans.unshift(newBan);
-  writeData(data);
-
-  return res.json({
-    success: true,
-    message: `Player "${cleanPlayer}" has been banned successfully.`,
-    ban: newBan
-  });
-});
-
-/**
- * User unbans a player on their server
- * POST /api/user/players/unban
- * Fields: licenseKey, banId
- */
-app.post('/api/user/players/unban', (req, res) => {
-  const { licenseKey, banId } = req.body;
-  if (!licenseKey || !banId) {
-    return res.status(400).json({ error: 'License key and ban ID are required.' });
-  }
-
-  const cleanKey = licenseKey.trim().toUpperCase();
-  const data = readData();
-  data.playerBans = data.playerBans || [];
-
-  const ban = data.playerBans.find(b => b.id === banId && b.licenseKey === cleanKey);
-  if (!ban) {
-    return res.status(404).json({ error: 'Ban record not found for this server.' });
-  }
-
-  ban.status = 'UNBANNED';
-  writeData(data);
-
-  return res.json({
-    success: true,
-    message: `Player "${ban.playerName}" has been unbanned.`
-  });
-});
-
-/**
- * User kicks a player on their own server
- * POST /api/user/players/kick
- * Fields: licenseKey, playerName, reason
- */
-app.post('/api/user/players/kick', (req, res) => {
-  const { licenseKey, playerName, reason } = req.body;
-  if (!licenseKey || !playerName) {
-    return res.status(400).json({ error: 'License key and player name are required.' });
-  }
-
-  const cleanKey = licenseKey.trim().toUpperCase();
-  const cleanPlayer = playerName.trim();
-  const data = readData();
-
-  const license = (data.licenses || []).find(l => l.key.toUpperCase() === cleanKey);
-  if (!license) {
-    return res.status(404).json({ error: 'License not found.' });
-  }
-
-  if (license.status === 'BANNED') {
-    return res.status(403).json({ error: 'Banned licenses cannot kick players.' });
-  }
-
-  data.pendingKicks = data.pendingKicks || [];
-  const kickItem = {
-    id: 'kick_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-    licenseKey: cleanKey,
-    playerName: cleanPlayer,
-    reason: (reason || '').trim() || 'Kicked by administrator',
-    status: 'PENDING',
-    timestamp: Date.now()
-  };
-
-  data.pendingKicks.push(kickItem);
-  writeData(data);
-
-  return res.json({
-    success: true,
-    message: `Player "${cleanPlayer}" has been kicked successfully.`,
-    kick: kickItem
-  });
-});
-
-/**
- * User resets their own server IP binding
- * POST /api/user/reset-ip
- */
-app.post('/api/user/reset-ip', (req, res) => {
-  const { key } = req.body;
-  const data = readData();
-  const license = (data.licenses || []).find(l => l.key.toUpperCase() === (key || '').trim().toUpperCase());
-
-  if (!license) {
-    return res.status(404).json({ error: 'License key not found.' });
-  }
-
-  if (license.status === 'BANNED') {
-    return res.status(403).json({ error: 'Banned licenses cannot reset IP bindings.' });
-  }
-
-  license.boundIp = null;
-  writeData(data);
-  res.json({ success: true, message: 'Your server IP binding has been cleared! Start your server from the new hosting to bind.' });
-});
-
-// -------------------------------------------------------------
-// 4. ADMIN FLEET CONTROL API ENDPOINTS (SUPABASE)
-// -------------------------------------------------------------
-
-/**
- * Admin authentication
- * POST /api/admin/login
- */
-app.post('/api/admin/login', (req, res) => {
-  const { secret } = req.body;
-  const data = readData();
-
-  if (!secret || secret !== data.adminSecret) {
-    return res.status(401).json({ error: 'Invalid admin secret key.' });
-  }
-
-  res.json({ success: true, message: 'Admin authenticated.' });
-});
-
-/**
- * Global fleet stats for Admin Dashboard
+ * Global stats for Admin Panel
  * GET /api/admin/stats
  */
 app.get('/api/admin/stats', (req, res) => {
   const data = readData();
   const totalServersHosted = (data.servers || []).length;
   const activeServersOnline = (data.servers || []).filter(isServerOnline).length;
-  const totalLicenses = (data.licenses || []).length;
-  const bannedLicenses = (data.licenses || []).filter(l => l.status === 'BANNED').length;
   const totalUsers = (data.users || []).length;
   const totalPlayerBans = (data.playerBans || []).filter(b => b.status === 'ACTIVE').length;
   const totalViolations = (data.violations || []).length;
+  const totalDownloads = data.totalDownloads || (data.downloads ? data.downloads.length : 0);
 
   res.json({
+    totalDownloads,
     totalServersHosted,
     activeServersOnline,
-    totalLicenses,
-    bannedLicenses,
     totalUsers,
     totalPlayerBans,
     totalViolations,
     totalServers: totalServersHosted,
     onlineServers: activeServersOnline,
     registeredUsers: totalUsers,
-    activeBans: totalPlayerBans,
-    issuedLicenses: totalLicenses
+    activeBans: totalPlayerBans
   });
+});
+
+/**
+ * List all connected servers
+ * GET /api/admin/servers
+ */
+app.get('/api/admin/servers', (req, res) => {
+  const data = readData();
+  const formatted = (data.servers || []).map(s => ({
+    ...s,
+    isOnline: isServerOnline(s)
+  }));
+  res.json(formatted);
+});
+
+/**
+ * Ban/Suspend a Minecraft server
+ * POST /api/admin/servers/:id/ban
+ */
+app.post('/api/admin/servers/:id/ban', (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+  const data = readData();
+
+  const server = (data.servers || []).find(s => s.id === id);
+  if (!server) {
+    return res.status(404).json({ error: 'Server not found.' });
+  }
+
+  server.status = 'BANNED';
+  server.banReason = reason || 'Admin server ban';
+  writeData(data);
+
+  res.json({ success: true, message: `Server "${server.serverName}" has been banned.` });
+});
+
+/**
+ * List all admin accounts
+ * GET /api/admin/users
+ */
+app.get('/api/admin/users', (req, res) => {
+  const data = readData();
+  const users = (data.users || []).map(u => ({
+    id: u.id,
+    username: u.username,
+    role: u.role || 'ADMIN',
+    createdAt: u.createdAt,
+    lastLogin: u.lastLogin
+  }));
+  res.json(users);
 });
 
 /**
@@ -630,149 +470,83 @@ app.get('/api/admin/player-bans', (req, res) => {
 });
 
 /**
- * List all connected servers
- * GET /api/admin/servers
+ * Admin bans a player globally or on a specific server
+ * POST /api/admin/players/ban
  */
-app.get('/api/admin/servers', (req, res) => {
-  const data = readData();
-  const formatted = (data.servers || []).map(s => ({
-    ...s,
-    isOnline: isServerOnline(s)
-  }));
-  res.json(formatted);
-});
-
-/**
- * Ban an entire Minecraft server & revoke its license
- * POST /api/admin/servers/:id/ban
- */
-app.post('/api/admin/servers/:id/ban', (req, res) => {
-  const { id } = req.params;
-  const { reason } = req.body;
-  const data = readData();
-
-  const server = (data.servers || []).find(s => s.id === id);
-  if (!server) {
-    return res.status(404).json({ error: 'Server not found.' });
+app.post('/api/admin/players/ban', (req, res) => {
+  const { playerName, reason, duration, ipBanned, serverName } = req.body;
+  if (!playerName) {
+    return res.status(400).json({ error: 'Player name is required.' });
   }
 
-  server.status = 'BANNED';
-  const license = (data.licenses || []).find(l => l.key === server.licenseKey);
-  if (license) {
-    license.status = 'BANNED';
-    license.banReason = reason || 'Admin server ban';
-  }
-
-  writeData(data);
-  res.json({ success: true, message: `Server ${server.serverName} has been banned.` });
-});
-
-/**
- * List all users stored in Supabase
- * GET /api/admin/users
- */
-app.get('/api/admin/users', (req, res) => {
+  const cleanPlayer = playerName.trim();
   const data = readData();
-  const users = (data.users || []).map(u => ({
-    id: u.id,
-    username: u.username,
-    licenseKey: u.licenseKey,
-    role: u.role,
-    createdAt: u.createdAt,
-    lastLogin: u.lastLogin
-  }));
-  res.json(users);
-});
+  data.playerBans = data.playerBans || [];
 
-/**
- * List all licenses
- * GET /api/admin/licenses
- */
-app.get('/api/admin/licenses', (req, res) => {
-  const data = readData();
-  res.json(data.licenses || []);
-});
-
-/**
- * Admin creates a new license key
- * POST /api/admin/licenses/create
- */
-app.post('/api/admin/licenses/create', (req, res) => {
-  const { owner, email, tier, durationDays, maxServers } = req.body;
-  if (!owner) {
-    return res.status(400).json({ error: 'Buyer / Owner name is required.' });
-  }
-
-  const data = readData();
-  data.licenses = data.licenses || [];
-
-  const key = generateLicenseKey();
-  let expiresAt = null;
-  if (durationDays && Number(durationDays) > 0) {
-    expiresAt = Date.now() + Number(durationDays) * 86400000;
-  }
-
-  const newLicense = {
-    key,
-    owner: owner.trim(),
-    email: email ? email.trim() : null,
-    tier: tier || 'LIFETIME',
-    status: 'ACTIVE',
-    boundIp: null,
-    maxServers: Number(maxServers) || 1,
-    createdAt: Date.now(),
-    expiresAt,
-    banReason: null
+  const newBan = {
+    id: 'pban_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    serverName: serverName || 'All Servers',
+    playerName: cleanPlayer,
+    reason: (reason || '').trim() || 'Admin ban',
+    duration: duration || 'PERMANENT',
+    bannedBy: 'Admin',
+    ipBanned: Boolean(ipBanned),
+    bannedAt: Date.now(),
+    expiresAt: calculateExpiry(duration),
+    status: 'ACTIVE'
   };
 
-  data.licenses.unshift(newLicense);
+  data.playerBans.unshift(newBan);
   writeData(data);
 
-  res.json({ success: true, license: newLicense });
+  res.json({ success: true, message: `Player "${cleanPlayer}" banned.`, ban: newBan });
 });
 
 /**
- * Admin toggles or bans a license
- * POST /api/admin/licenses/:key/status
+ * Admin unbans a player
+ * POST /api/admin/players/unban
  */
-app.post('/api/admin/licenses/:key/status', (req, res) => {
-  const { key } = req.params;
-  const { status, reason } = req.body;
-
+app.post('/api/admin/players/unban', (req, res) => {
+  const { banId } = req.body;
   const data = readData();
-  const license = (data.licenses || []).find(l => l.key.toUpperCase() === key.toUpperCase());
+  data.playerBans = data.playerBans || [];
 
-  if (!license) {
-    return res.status(404).json({ error: 'License key not found.' });
+  const ban = data.playerBans.find(b => b.id === banId);
+  if (!ban) {
+    return res.status(404).json({ error: 'Ban record not found.' });
   }
 
-  license.status = status || (license.status === 'BANNED' ? 'ACTIVE' : 'BANNED');
-  if (license.status === 'BANNED') {
-    license.banReason = reason || 'Administrative action';
-  } else {
-    license.banReason = null;
-  }
-
+  ban.status = 'UNBANNED';
   writeData(data);
-  res.json({ success: true, license });
+
+  res.json({ success: true, message: `Player "${ban.playerName}" unbanned.` });
 });
 
 /**
- * Admin resets bound IP for a key
- * POST /api/admin/licenses/:key/reset-ip
+ * Admin kicks a player
+ * POST /api/admin/players/kick
  */
-app.post('/api/admin/licenses/:key/reset-ip', (req, res) => {
-  const { key } = req.params;
-  const data = readData();
-  const license = (data.licenses || []).find(l => l.key.toUpperCase() === key.toUpperCase());
-
-  if (!license) {
-    return res.status(404).json({ error: 'License key not found.' });
+app.post('/api/admin/players/kick', (req, res) => {
+  const { playerName, reason } = req.body;
+  if (!playerName) {
+    return res.status(400).json({ error: 'Player name is required.' });
   }
 
-  license.boundIp = null;
+  const data = readData();
+  data.pendingKicks = data.pendingKicks || [];
+
+  const kickItem = {
+    id: 'kick_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    playerName: playerName.trim(),
+    reason: (reason || '').trim() || 'Kicked by administrator',
+    status: 'PENDING',
+    timestamp: Date.now()
+  };
+
+  data.pendingKicks.push(kickItem);
   writeData(data);
-  res.json({ success: true, message: 'IP binding has been reset.' });
+
+  res.json({ success: true, message: `Kick signal sent for player "${playerName}".` });
 });
 
 /**
@@ -795,7 +569,7 @@ app.use((req, res, next) => {
   if (fs.existsSync(indexHtml)) {
     res.sendFile(indexHtml);
   } else {
-    res.send('Nexora Panel API running. Frontend not compiled yet.');
+    res.send('Nexora AntiCheat Admin Panel API running. Frontend not compiled yet.');
   }
 });
 
@@ -803,7 +577,7 @@ app.use((req, res, next) => {
 function startKeepAlive() {
   const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL;
   if (!externalUrl) {
-    console.log('[24/7 KeepAlive] RENDER_EXTERNAL_URL not set. In Render dashboard, add environment variable RENDER_EXTERNAL_URL with your app URL to enable auto-ping, or use UptimeRobot.');
+    console.log('[24/7 KeepAlive] RENDER_EXTERNAL_URL not set. Set it in Render dashboard or use UptimeRobot to ping /api/health every 5 minutes.');
     return;
   }
 
@@ -814,7 +588,6 @@ function startKeepAlive() {
     try {
       const client = pingUrl.startsWith('https') ? https : http;
       client.get(pingUrl, (res) => {
-        // Drain response
         res.on('data', () => {});
         res.on('end', () => {
           console.log(`[24/7 KeepAlive] Ping successful (Status: ${res.statusCode}) at ${new Date().toISOString()}`);
@@ -825,7 +598,7 @@ function startKeepAlive() {
     } catch (e) {
       console.warn(`[24/7 KeepAlive] Exception on ping: ${e.message}`);
     }
-  }, 10 * 60 * 1000); // Every 10 minutes
+  }, 10 * 60 * 1000);
 }
 
 // Start listening after database initialization
