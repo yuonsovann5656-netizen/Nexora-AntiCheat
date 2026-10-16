@@ -339,11 +339,14 @@ app.get(['/api/plugins/:id/download', '/api/download/:file', '/download'], (req,
   const accountKey = username ? `user_${username}` : `ip_${clientIp}`;
 
   // Unique download count per account for THIS specific plugin file
+  if (plugin.baseDownloads === undefined) {
+    plugin.baseDownloads = plugin.downloads || 0;
+  }
   plugin.downloadedAccounts = plugin.downloadedAccounts || [];
   if (!plugin.downloadedAccounts.includes(accountKey)) {
     plugin.downloadedAccounts.push(accountKey);
-    plugin.downloads = plugin.downloadedAccounts.length;
-    data.totalDownloads = (data.plugins || []).reduce((sum, p) => sum + (p.downloadedAccounts ? p.downloadedAccounts.length : (p.downloads || 0)), 0);
+    plugin.downloads = plugin.baseDownloads + plugin.downloadedAccounts.length;
+    data.totalDownloads = (data.plugins || []).reduce((sum, p) => sum + (p.downloads || 0), 0);
   }
 
   // Record audit log
