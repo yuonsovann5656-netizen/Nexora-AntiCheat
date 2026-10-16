@@ -1,156 +1,200 @@
 import React, { useState, useEffect } from 'react';
-import AdminPanel from './components/AdminPanel';
-import UserPanel from './components/UserPanel';
-import EmbedGuide from './components/EmbedGuide';
 import { API_BASE } from './apiConfig';
+import UserDashboard from './components/UserDashboard';
+import AdminDashboard from './components/AdminDashboard';
 
-export default function App() {
-  const [currentView, setCurrentView] = useState('user'); // Default to 'user' client portal
-  const [backendOnline, setBackendOnline] = useState(false);
+function App() {
+  const [session, setSession] = useState(null);
+  const [authTab, setAuthTab] = useState('login');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [licenseKey, setLicenseKey] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    checkHealth();
-    const interval = setInterval(checkHealth, 10000);
-    return () => clearInterval(interval);
+    const stored = localStorage.getItem('nexora_session');
+    if (stored) {
+      try {
+        setSession(JSON.parse(stored));
+      } catch {
+        localStorage.removeItem('nexora_session');
+      }
+    }
   }, []);
 
-  async function checkHealth() {
+  const handleLogout = () => {
+    localStorage.removeItem('nexora_session');
+    setSession(null);
+  };
+
+  const resetForm = () => {
+    setUsername('');
+    setPassword('');
+    setConfirmPassword('');
+    setLicenseKey('');
+    setError('');
+    setSuccess('');
+  };
+
+  const switchTab = (tab) => {
+    setAuthTab(tab);
+    resetForm();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
     try {
-      const res = await fetch(`${API_BASE}/api/admin/stats`);
-      setBackendOnline(res.ok);
-    } catch (e) {
-      setBackendOnline(false);
+      if (authTab === 'login') {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, licenseKey }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
+        const userSession = data.user || data;
+        localStorage.setItem('nexora_session', JSON.stringify(userSession));
+        setSession(userSession);
+      } else {
+        if (password !== confirmPassword) {
+          throw new Error('Passwords do not match');
+        }
+        const res = await fetch(`${API_BASE}/api/auth/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, confirmPassword, licenseKey }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || data.message || 'Signup failed');
+        setSuccess('Account created successfully! Please sign in with your credentials.');
+        switchTab('login');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // If authenticated, render role-specific dashboard
+  if (session) {
+    if (session.role === 'ADMIN') {
+      return <AdminDashboard user={session} onLogout={handleLogout} />;
+    }
+    return <UserDashboard user={session} onLogout={handleLogout} />;
   }
 
+  // Unauthenticated — Only Login/Signup page displays
   return (
-    <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '24px 20px 60px' }}>
-      {/* Top Header & Branding */}
-      <header style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingBottom: '20px',
-        marginBottom: '28px',
-        borderBottom: '1px solid var(--border)',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #ff0000 0%, #880000 100%)',
-            width: '44px',
-            height: '44px',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '22px',
-            boxShadow: '0 0 20px rgba(255, 0, 0, 0.4)'
-          }}>
-            🛡️
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-header">
+          <div className="auth-logo-box">🛡️</div>
+          <div className="auth-title">
+            NEXORA <span>ANTICHEAT</span>
           </div>
-          <div>
-            <h1 style={{ fontSize: '20px', fontWeight: '800', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: '#ff0000' }}>NEXORA</span> ANTICHEAT
-              <span style={{ fontSize: '11px', background: 'rgba(255, 0, 0, 0.15)', color: '#ff0000', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,0,0,0.3)' }}>
-                PANEL v1.0
-              </span>
-            </h1>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              License Authority • Minecraft Server Fleet & AntiCheat Telemetry Dashboard
-            </p>
+          <div className="auth-subtitle">
+            Secure Cloud Licensing & Fleet Control Platform
           </div>
         </div>
 
-        {/* View Switcher Tabs & Backend Status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            display: 'flex',
-            background: 'var(--bg-card)',
-            padding: '4px',
-            borderRadius: '10px',
-            border: '1px solid var(--border)'
-          }}>
-            <button
-              onClick={() => setCurrentView('admin')}
-              style={{
-                background: currentView === 'admin' ? '#ff0000' : 'transparent',
-                color: currentView === 'admin' ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '6px',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              👑 Admin Panel
-            </button>
-            <button
-              onClick={() => setCurrentView('user')}
-              style={{
-                background: currentView === 'user' ? '#ff0000' : 'transparent',
-                color: currentView === 'user' ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '6px',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              👤 Buyer / User Portal
-            </button>
-            <button
-              onClick={() => setCurrentView('embed')}
-              style={{
-                background: currentView === 'embed' ? '#ff0000' : 'transparent',
-                color: currentView === 'embed' ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '6px',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              🔌 Website Embed
-            </button>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '12px',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            background: backendOnline ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            border: `1px solid ${backendOnline ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-            color: backendOnline ? '#10b981' : '#ef4444'
-          }}>
-            <span style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: backendOnline ? '#10b981' : '#ef4444',
-              boxShadow: backendOnline ? '0 0 8px #10b981' : '0 0 8px #ef4444'
-            }}></span>
-            {backendOnline ? 'API Connected' : 'API Offline'}
-          </div>
+        <div className="auth-tabs">
+          <button
+            className={`auth-tab ${authTab === 'login' ? 'active' : ''}`}
+            onClick={() => switchTab('login')}
+            type="button"
+          >
+            Sign In
+          </button>
+          <button
+            className={`auth-tab ${authTab === 'signup' ? 'active' : ''}`}
+            onClick={() => switchTab('signup')}
+            type="button"
+          >
+            Create Account
+          </button>
         </div>
-      </header>
 
-      {/* Main Content Area */}
-      <main>
-        {currentView === 'admin' && <AdminPanel />}
-        {currentView === 'user' && <UserPanel />}
-        {currentView === 'embed' && <EmbedGuide />}
-      </main>
+        {error && <div className="alert alert-error">⚠️ {error}</div>}
+        {success && <div className="alert alert-success">✅ {success}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label">Username</label>
+            <input
+              type="text"
+              className="input-field"
+              placeholder="e.g. ServerOwner"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">License Key</label>
+            <input
+              type="text"
+              className="input-field input-mono"
+              placeholder="NX-XXXX-XXXX-XXXX"
+              value={licenseKey}
+              onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Password</label>
+            <input
+              type="password"
+              className="input-field"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete={authTab === 'login' ? 'current-password' : 'new-password'}
+            />
+          </div>
+
+          {authTab === 'signup' && (
+            <div className="form-group">
+              <label className="form-label">Confirm Password</label>
+              <input
+                type="password"
+                className="input-field"
+                placeholder="Repeat your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="btn btn-primary btn-full"
+            style={{ marginTop: '10px' }}
+            disabled={loading}
+          >
+            {loading
+              ? 'Authenticating...'
+              : authTab === 'login'
+                ? '⚡ Access Dashboard'
+                : '✨ Register New Account'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
+
+export default App;

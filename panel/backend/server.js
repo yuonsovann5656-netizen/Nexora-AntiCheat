@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const {
   initDatabase,
   readData,
@@ -149,7 +151,7 @@ app.post('/api/license/verify', (req, res) => {
  * POST /api/license/heartbeat
  */
 app.post('/api/license/heartbeat', (req, res) => {
-  const { key, onlinePlayers, tps, recentViolations } = req.body;
+  const { key, onlinePlayers, tps, recentViolations, playerNames, plugins } = req.body;
   if (!key) {
     return res.status(400).json({ valid: false, reason: 'KEY_MISSING' });
   }
@@ -174,6 +176,8 @@ app.post('/api/license/heartbeat', (req, res) => {
   if (server) {
     if (onlinePlayers !== undefined) server.onlinePlayers = Number(onlinePlayers);
     if (tps !== undefined) server.tps = Math.round(Number(tps) * 100) / 100;
+    if (Array.isArray(playerNames)) server.playerNames = playerNames;
+    if (Array.isArray(plugins)) server.plugins = plugins;
     server.lastHeartbeat = Date.now();
     server.status = 'ONLINE';
   }
@@ -205,10 +209,18 @@ app.post('/api/license/heartbeat', (req, res) => {
     .filter(b => b.licenseKey === license.key && b.status === 'ACTIVE')
     .map(b => ({ playerName: b.playerName, reason: b.reason, ipBanned: b.ipBanned }));
 
+  // Return pending kicks for this server and mark as delivered
+  data.pendingKicks = data.pendingKicks || [];
+  const pendingKicks = data.pendingKicks
+    .filter(k => k.licenseKey === license.key && k.status === 'PENDING');
+  pendingKicks.forEach(k => { k.status = 'DELIVERED'; });
+  if (pendingKicks.length > 0) writeData(data);
+
   return res.json({
     status: 'OK',
     serverStatus: license.status,
-    activeBans
+    activeBans,
+    pendingKicks: pendingKicks.map(k => ({ playerName: k.playerName, reason: k.reason }))
   });
 });
 
@@ -388,7 +400,8 @@ app.post('/api/user/portal', (req, res) => {
     license,
     server: server ? { ...server, isOnline: isServerOnline(server) } : null,
     violations,
-    playerBans
+    playerBans,
+    onlinePlayerNames: (server && server.playerNames) || []
   });
 });
 
@@ -484,6 +497,50 @@ app.post('/api/user/players/unban', (req, res) => {
 });
 
 /**
+ * User kicks a player on their own server
+ * POST /api/user/players/kick
+ * Fields: licenseKey, playerName, reason
+ */
+app.post('/api/user/players/kick', (req, res) => {
+  const { licenseKey, playerName, reason } = req.body;
+  if (!licenseKey || !playerName) {
+    return res.status(400).json({ error: 'License key and player name are required.' });
+  }
+
+  const cleanKey = licenseKey.trim().toUpperCase();
+  const cleanPlayer = playerName.trim();
+  const data = readData();
+
+  const license = (data.licenses || []).find(l => l.key.toUpperCase() === cleanKey);
+  if (!license) {
+    return res.status(404).json({ error: 'License not found.' });
+  }
+
+  if (license.status === 'BANNED') {
+    return res.status(403).json({ error: 'Banned licenses cannot kick players.' });
+  }
+
+  data.pendingKicks = data.pendingKicks || [];
+  const kickItem = {
+    id: 'kick_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    licenseKey: cleanKey,
+    playerName: cleanPlayer,
+    reason: (reason || '').trim() || 'Kicked by administrator',
+    status: 'PENDING',
+    timestamp: Date.now()
+  };
+
+  data.pendingKicks.push(kickItem);
+  writeData(data);
+
+  return res.json({
+    success: true,
+    message: `Player "${cleanPlayer}" has been kicked successfully.`,
+    kick: kickItem
+  });
+});
+
+/**
  * User resets their own server IP binding
  * POST /api/user/reset-ip
  */
@@ -545,8 +602,31 @@ app.get('/api/admin/stats', (req, res) => {
     bannedLicenses,
     totalUsers,
     totalPlayerBans,
-    totalViolations
+    totalViolations,
+    totalServers: totalServersHosted,
+    onlineServers: activeServersOnline,
+    registeredUsers: totalUsers,
+    activeBans: totalPlayerBans,
+    issuedLicenses: totalLicenses
   });
+});
+
+/**
+ * List all violations across all servers
+ * GET /api/admin/violations
+ */
+app.get('/api/admin/violations', (req, res) => {
+  const data = readData();
+  res.json(data.violations || []);
+});
+
+/**
+ * List all player bans across all servers
+ * GET /api/admin/player-bans
+ */
+app.get('/api/admin/player-bans', (req, res) => {
+  const data = readData();
+  res.json(data.playerBans || []);
 });
 
 /**
@@ -695,6 +775,19 @@ app.post('/api/admin/licenses/:key/reset-ip', (req, res) => {
   res.json({ success: true, message: 'IP binding has been reset.' });
 });
 
+/**
+ * Health check endpoint for external uptime monitors (UptimeRobot, BetterStack, Render)
+ * GET /api/health
+ */
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ONLINE',
+    service: 'Nexora AntiCheat Licensing & Fleet Authority',
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: Date.now()
+  });
+});
+
 // Fallback to index.html for client-side routing (compatible with Express 4 and Express 5)
 app.use((req, res, next) => {
   if (req.method !== 'GET') return next();
@@ -706,14 +799,45 @@ app.use((req, res, next) => {
   }
 });
 
+// 24/7 Keep-Alive self-pinger (prevents Render Free tier from sleeping after 15 mins)
+function startKeepAlive() {
+  const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL;
+  if (!externalUrl) {
+    console.log('[24/7 KeepAlive] RENDER_EXTERNAL_URL not set. In Render dashboard, add environment variable RENDER_EXTERNAL_URL with your app URL to enable auto-ping, or use UptimeRobot.');
+    return;
+  }
+
+  const pingUrl = externalUrl.replace(/\/+$/, '') + '/api/health';
+  console.log(`[24/7 KeepAlive] Service active. Auto-pinging ${pingUrl} every 10 minutes to stay online 24/7.`);
+
+  setInterval(() => {
+    try {
+      const client = pingUrl.startsWith('https') ? https : http;
+      client.get(pingUrl, (res) => {
+        // Drain response
+        res.on('data', () => {});
+        res.on('end', () => {
+          console.log(`[24/7 KeepAlive] Ping successful (Status: ${res.statusCode}) at ${new Date().toISOString()}`);
+        });
+      }).on('error', (err) => {
+        console.warn(`[24/7 KeepAlive] Ping warning: ${err.message}`);
+      });
+    } catch (e) {
+      console.warn(`[24/7 KeepAlive] Exception on ping: ${e.message}`);
+    }
+  }, 10 * 60 * 1000); // Every 10 minutes
+}
+
 // Start listening after database initialization
 initDatabase().then(() => {
   app.listen(PORT, () => {
     console.log(`[Nexora Panel API] Server running on http://localhost:${PORT}`);
+    startKeepAlive();
   });
 }).catch(err => {
   console.error('[Nexora Panel API] Database initialization warning:', err.message);
   app.listen(PORT, () => {
     console.log(`[Nexora Panel API] Server running on http://localhost:${PORT}`);
+    startKeepAlive();
   });
 });

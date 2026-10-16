@@ -21,7 +21,8 @@ const defaultState = {
   licenses: [],
   servers: [],
   violations: [],
-  playerBans: []
+  playerBans: [],
+  pendingKicks: []
 };
 
 // Cryptographic password hashing helpers (Zero external dependencies)
@@ -238,6 +239,7 @@ function loadLocalStore() {
       parsed.servers = parsed.servers || [];
       parsed.violations = parsed.violations || [];
       parsed.playerBans = parsed.playerBans || [];
+      parsed.pendingKicks = parsed.pendingKicks || [];
       memoryStore = parsed;
     }
   } catch (err) {
