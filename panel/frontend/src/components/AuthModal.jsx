@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { API_BASE } from '../apiConfig';
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
@@ -201,7 +201,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               cursor: 'pointer'
             }}
           >
-            ✕
+            Γ£ò
           </button>
         </div>
 
@@ -277,7 +277,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 <input
                   type="password"
                   className="input-field"
-                  placeholder="••••••••"
+                  placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
@@ -368,7 +368,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 borderRadius: '8px',
                 marginBottom: '18px'
               }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>✉️</div>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>Γ£ë∩╕Å</div>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
                   Verify Your Email
                 </div>
@@ -491,9 +491,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             fontSize: '11px',
             color: '#656e80'
           }}>
-            <span>🔒 Encrypted with PBKDF2-SHA512</span>
-            <span>•</span>
-            <span>⚡ Supabase PostgreSQL</span>
+            <span>≡ƒöÆ Encrypted with PBKDF2-SHA512</span>
+            <span>ΓÇó</span>
+            <span>ΓÜí Supabase PostgreSQL</span>
           </div>
 
         </div>

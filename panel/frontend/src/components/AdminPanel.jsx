@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../apiConfig';
 
 export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
@@ -264,12 +264,12 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
                 NEXORA ADMINISTRATOR PANEL
               </div>
               <div style={{ fontSize: '11px', color: '#8892a4' }}>
-                Server Local Storage • Supabase PostgreSQL • Zero License Lock
+                Server Local Storage ΓÇó Supabase PostgreSQL ΓÇó Zero License Lock
               </div>
             </div>
           </div>
           <button className="modal-close" onClick={onClose} style={{ fontSize: '18px', background: 'none', border: 'none', color: '#8892a4', cursor: 'pointer' }}>
-            ✕
+            Γ£ò
           </button>
         </div>
 
@@ -280,28 +280,28 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
             onClick={() => { setActiveTab('overview'); setAlertMsg(null); }}
             style={{ padding: '14px 20px', border: 'none', background: 'none', color: activeTab === 'overview' ? '#fff' : '#8892a4', fontWeight: 600, borderBottom: activeTab === 'overview' ? '2px solid #fff' : '2px solid transparent', cursor: 'pointer' }}
           >
-            📊 Fleet Overview
+            ≡ƒôè Fleet Overview
           </button>
           <button
             className={`modal-tab ${activeTab === 'plugins' ? 'active' : ''}`}
             onClick={() => { setActiveTab('plugins'); setAlertMsg(null); }}
             style={{ padding: '14px 20px', border: 'none', background: 'none', color: activeTab === 'plugins' ? '#fff' : '#8892a4', fontWeight: 600, borderBottom: activeTab === 'plugins' ? '2px solid #fff' : '2px solid transparent', cursor: 'pointer' }}
           >
-            📦 Plugin Hosting & Upload
+            ≡ƒôª Plugin Hosting & Upload
           </button>
           <button
             className={`modal-tab ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => { setActiveTab('users'); setAlertMsg(null); }}
             style={{ padding: '14px 20px', border: 'none', background: 'none', color: activeTab === 'users' ? '#fff' : '#8892a4', fontWeight: 600, borderBottom: activeTab === 'users' ? '2px solid #fff' : '2px solid transparent', cursor: 'pointer' }}
           >
-            👥 User Accounts & Verification ({users.length})
+            ≡ƒæÑ User Accounts & Verification ({users.length})
           </button>
           <button
             className={`modal-tab ${activeTab === 'downloads' ? 'active' : ''}`}
             onClick={() => { setActiveTab('downloads'); setAlertMsg(null); }}
             style={{ padding: '14px 20px', border: 'none', background: 'none', color: activeTab === 'downloads' ? '#fff' : '#8892a4', fontWeight: 600, borderBottom: activeTab === 'downloads' ? '2px solid #fff' : '2px solid transparent', cursor: 'pointer' }}
           >
-            📥 Download Audit Logs ({downloads.length})
+            ≡ƒôÑ Download Audit Logs ({downloads.length})
           </button>
         </div>
 
@@ -329,7 +329,7 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
                   <div style={{ fontSize: '12px', color: '#8892a4', marginBottom: '6px' }}>TOTAL USERS</div>
                   <div style={{ fontSize: '26px', fontWeight: 800, color: '#fff' }}>{stats.totalUsers || 0}</div>
                   <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px' }}>
-                    ✓ {stats.verifiedUsers || 0} Verified
+                    Γ£ô {stats.verifiedUsers || 0} Verified
                   </div>
                 </div>
 
@@ -364,7 +364,7 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
                 marginBottom: '20px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ fontSize: '24px' }}>⚡</div>
+                  <div style={{ fontSize: '24px' }}>ΓÜí</div>
                   <div>
                     <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>
                       Supabase Cloud Database & Authentication
@@ -653,7 +653,7 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
                   </div>
                 </div>
                 <button className="btn btn-secondary" onClick={fetchAdminData} style={{ fontSize: '12px' }}>
-                  ↻ Refresh
+                  Γå╗ Refresh
                 </button>
               </div>
 
@@ -682,11 +682,11 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
                           </div>
                           {u.emailVerified ? (
                             <span className="badge badge-green" style={{ fontSize: '10px', padding: '2px 8px' }}>
-                              VERIFIED ✓
+                              VERIFIED Γ£ô
                             </span>
                           ) : (
                             <span className="badge badge-yellow" style={{ fontSize: '10px', padding: '2px 8px' }}>
-                              UNVERIFIED ⚠️
+                              UNVERIFIED ΓÜá∩╕Å
                             </span>
                           )}
                         </td>
@@ -717,7 +717,7 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
                               }}
                               title="Toggle Email Verification"
                             >
-                              {u.emailVerified ? 'Unverify' : '✓ Verify'}
+                              {u.emailVerified ? 'Unverify' : 'Γ£ô Verify'}
                             </button>
 
                             {/* Add balance */}
@@ -758,7 +758,7 @@ export default function AdminPanel({ isOpen, onClose, user, onRefreshStore }) {
                                 onClick={() => handleDeleteUser(u.id, u.username)}
                                 style={{ fontSize: '11px', padding: '4px 8px' }}
                               >
-                                ✕
+                                Γ£ò
                               </button>
                             )}
                           </div>

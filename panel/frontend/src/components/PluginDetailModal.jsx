@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../apiConfig';
 
 export default function PluginDetailModal({
@@ -149,11 +149,11 @@ export default function PluginDetailModal({
             <div>
               <div className="modal-title" style={{ fontSize: '18px' }}>{plugin.name}</div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                v{plugin.version} • {plugin.category} • {plugin.supportedVersions}
+                v{plugin.version} ΓÇó {plugin.category} ΓÇó {plugin.supportedVersions}
               </div>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}>Γ£ò</button>
         </div>
 
         {/* Tab Selector */}
@@ -205,7 +205,7 @@ export default function PluginDetailModal({
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                 <div className="stat-card">
                   <div className="stat-lbl">Rating</div>
-                  <div className="stat-val" style={{ fontSize: '20px' }}>⭐ {plugin.rating || '5.0'} / 5.0</div>
+                  <div className="stat-val" style={{ fontSize: '20px' }}>Γ¡É {plugin.rating || '5.0'} / 5.0</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-lbl">Downloads</div>
@@ -296,7 +296,7 @@ export default function PluginDetailModal({
                         className={`star ${star <= newRating ? 'active' : ''}`}
                         onClick={() => setNewRating(star)}
                       >
-                        ★
+                        Γÿà
                       </span>
                     ))}
                   </div>
@@ -325,12 +325,12 @@ export default function PluginDetailModal({
                       onChange={handleImageUpload}
                     />
                     <label htmlFor="review-img-upload" style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      📷 {reviewImage ? 'Change Image Attachment' : 'Upload Proof / Telemetry / Game Screenshot'}
+                      ≡ƒô╖ {reviewImage ? 'Change Image Attachment' : 'Upload Proof / Telemetry / Game Screenshot'}
                     </label>
                     {reviewImage && (
                       <div className="image-preview-wrap">
                         <img src={reviewImage} alt="Attachment" className="image-preview" />
-                        <button type="button" className="btn-remove-img" onClick={() => setReviewImage('')}>✕</button>
+                        <button type="button" className="btn-remove-img" onClick={() => setReviewImage('')}>Γ£ò</button>
                       </div>
                     )}
                   </div>
@@ -357,7 +357,7 @@ export default function PluginDetailModal({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span className="review-username">{r.username}</span>
                           <span style={{ color: '#fff', fontSize: '12px' }}>
-                            {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                            {'Γÿà'.repeat(r.rating)}{'Γÿå'.repeat(5 - r.rating)}
                           </span>
                         </div>
                         <span className="review-date">
@@ -405,11 +405,11 @@ export default function PluginDetailModal({
                 onClick={onOpenAuth}
                 style={{ background: '#f59e0b', color: '#000', fontWeight: 700 }}
               >
-                ⚠️ Verify Email to Download
+                ΓÜá∩╕Å Verify Email to Download
               </button>
             ) : isOwned || isFree ? (
               <button className="btn btn-primary" onClick={handleDownloadJar}>
-                ⬇ Download {plugin.jarFileName || 'Plugin.jar'}
+                Γ¼ç Download {plugin.jarFileName || 'Plugin.jar'}
               </button>
             ) : user.balance >= plugin.price ? (
               <button className="btn btn-primary" onClick={handleBuy} disabled={buying}>
