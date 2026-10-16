@@ -86,4 +86,14 @@ public class ConfigManager {
     public Messages getMessages() {
         return messages;
     }
+
+    public void saveConfig() {
+        if (config != null && configFile != null) {
+            try {
+                config.save(configFile);
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.SEVERE, "Could not save config to " + configFile, e);
+            }
+        }
+    }
 }

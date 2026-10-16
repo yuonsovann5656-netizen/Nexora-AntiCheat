@@ -2,17 +2,6 @@
 #              NEXORA ANTICHEAT - CORE CONFIG
 # ==========================================================
 
-# Web Panel Cloud Fleet Integration (Optional)
-panel:
-  # Enable telemetry reporting to your Nexora Web Panel
-  enabled: true
-  # Name of your server displayed in the Web Panel
-  server-name: "Nexora Minecraft Server"
-  # Web Panel API URL (change to your web domain in production)
-  api-url: "http://localhost:3000/api"
-  # Telemetry heartbeat ping interval in seconds
-  heartbeat-interval-seconds: 60
-
 settings:
   # Automatically bypass anti-cheat checks for server operators (OPs)
   ops-bypass: true

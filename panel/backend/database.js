@@ -14,7 +14,7 @@ if (!fs.existsSync(DATA_DIR)) {
 let memoryStore = null;
 let pgPool = null;
 
-// Cryptographic password hashing helpers (Zero external dependencies)
+// Cryptographic password hashing helpers
 function hashPassword(password, salt) {
   if (!salt) {
     salt = crypto.randomBytes(16).toString('hex');
@@ -31,27 +31,207 @@ function verifyPassword(password, hash, salt) {
 
 const defaultAdminCreds = hashPassword('admin');
 
-// Clean default state with pre-seeded Admin account
+// Pre-seeded plugins for the marketplace
+const defaultPlugins = [
+  {
+    id: 'nexora-anticheat',
+    name: 'Nexora AntiCheat',
+    tagline: 'High-Performance Heuristic & Packet Anti-Cheat Engine',
+    description: 'Advanced behavioral anti-cheat solution featuring 26+ heuristic detection algorithms across Movement, Combat, World, and Packet vectors. Optimized for Paper, Purpur, and Folia regionized threading with automated lag and tick compensation.',
+    price: 19.99,
+    version: '1.0.0',
+    category: 'Security',
+    tags: ['AntiCheat', 'Folia', 'Paper', 'Combat', 'Movement', 'Zero-Lag'],
+    icon: '🛡️',
+    downloads: 1420,
+    rating: 5.0,
+    jarFileName: 'NexoraAntiCheat-1.0.0.jar',
+    downloadUrl: '/api/download/nexora-anticheat.jar',
+    githubReleaseUrl: 'https://github.com/yuonsovann5656-netizen/Nexora-AntiCheat/releases/download/v1.0.0/NexoraAntiCheat-1.0.0.jar',
+    supportedVersions: '1.20 - 1.21.4',
+    software: ['Paper', 'Purpur', 'Folia'],
+    screenshots: [
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
+      'https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=800&q=80'
+    ],
+    changelogs: [
+      {
+        version: '1.0.0',
+        date: 'October 16, 2026',
+        title: 'Initial Enterprise Public Release',
+        notes: [
+          'Removed all licensing restrictions for completely free, unencumbered community deployment.',
+          'Added 26+ high precision checks: KillAura, Reach (3.001 block raytrace), Velocity, Speed, Fly, Phase, BadPackets.',
+          'Full Folia region-threading compliance and async telemetry logging.',
+          'Server TPS and ping spike lag compensation.'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'nexora-core-staff',
+    name: 'Nexora Staff Suite & Core',
+    tagline: 'All-In-One Moderation, Freeze Screen & Inspection Utility',
+    description: 'Comprehensive staff utility suite providing interactive freeze GUIs, ghost vanish with packet manipulation, silent player inventory inspection, staff chat channels, and automated suspicious activity logs.',
+    price: 9.99,
+    version: '2.4.0',
+    category: 'Administration',
+    tags: ['Staff', 'Moderation', 'Freeze', 'Vanish', 'Admin'],
+    icon: '⚡',
+    downloads: 870,
+    rating: 4.9,
+    jarFileName: 'NexoraStaffSuite-2.4.0.jar',
+    downloadUrl: '/api/download/nexora-staff-suite.jar',
+    githubReleaseUrl: '',
+    supportedVersions: '1.20 - 1.21.4',
+    software: ['Paper', 'Purpur', 'Folia'],
+    screenshots: [
+      'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80'
+    ],
+    changelogs: [
+      {
+        version: '2.4.0',
+        date: 'October 10, 2026',
+        title: 'Packet-Level Vanish Update',
+        notes: [
+          'Replaced Bukkit hidePlayer with true packet entity destroy filter.',
+          'Added staff note system with persistent SQLite database.'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'nexora-combat-log',
+    name: 'Nexora CombatLog & AntiQuit',
+    tagline: 'Combat Tagging & Combat Logout NPC Protection',
+    description: 'Prevents unfair PvP combat logging by keeping players tagged during combat, spawning a killable NPC proxy if they disconnect, and blocking commands or safezone teleports during fights.',
+    price: 4.99,
+    version: '1.3.0',
+    category: 'Combat',
+    tags: ['PvP', 'Combat', 'AntiQuit', 'NPC'],
+    icon: '⚔️',
+    downloads: 650,
+    rating: 4.8,
+    jarFileName: 'NexoraCombatLog-1.3.0.jar',
+    downloadUrl: '/api/download/nexora-combat-log.jar',
+    githubReleaseUrl: '',
+    supportedVersions: '1.20 - 1.21.4',
+    software: ['Paper', 'Purpur', 'Folia'],
+    screenshots: [
+      'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80'
+    ],
+    changelogs: [
+      {
+        version: '1.3.0',
+        date: 'October 5, 2026',
+        title: 'Actionbar Countdown & Custom Drops',
+        notes: [
+          'Added smooth Adventure Actionbar timer countdown.',
+          'Configurable NPC health and drop mechanics.'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'nexora-security-bundle',
+    name: 'Nexora Ultimate Security Bundle',
+    tagline: 'Complete Server Protection: AntiCheat + Staff Suite + ExploitGuard',
+    description: 'Get the full suite of Nexora security plugins at a discount. Protect your server from hackers, combat loggers, server crash exploits, and book dupes with one comprehensive package.',
+    price: 29.99,
+    version: '1.0.0',
+    category: 'Bundle',
+    tags: ['Bundle', 'Security', 'AntiCheat', 'BestValue'],
+    icon: '👑',
+    downloads: 410,
+    rating: 5.0,
+    jarFileName: 'NexoraUltimateBundle-1.0.0.zip',
+    downloadUrl: '/api/download/nexora-bundle.zip',
+    githubReleaseUrl: '',
+    supportedVersions: '1.20 - 1.21.4',
+    software: ['Paper', 'Purpur', 'Folia'],
+    screenshots: [],
+    changelogs: [
+      {
+        version: '1.0.0',
+        date: 'October 16, 2026',
+        title: 'Complete 2026 Security Edition',
+        notes: ['Includes AntiCheat 1.0.0, Staff Suite 2.4.0, and CombatLog 1.3.0.']
+      }
+    ]
+  }
+];
+
+const defaultReviews = [
+  {
+    id: 'rev_1',
+    pluginId: 'nexora-anticheat',
+    username: 'HypixelDev_Sokha',
+    rating: 5,
+    comment: 'The best Folia-ready anti-cheat we have tested. Zero false positives on 1.21.4 movement checks and instantaneous KillAura raytrace detection. The new update runs smooth as butter!',
+    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
+    createdAt: Date.now() - 86400000 * 3
+  },
+  {
+    id: 'rev_2',
+    pluginId: 'nexora-anticheat',
+    username: 'MineCraftNetworkAdmin',
+    rating: 5,
+    comment: 'Massive TPS improvement compared to Spartan or Grim on our 200 player server. Shaded JAR dropped in and worked right out of the box with zero setup needed.',
+    imageUrl: '',
+    createdAt: Date.now() - 86400000 * 1
+  },
+  {
+    id: 'rev_3',
+    pluginId: 'nexora-core-staff',
+    username: 'PvPKingdomStaff',
+    rating: 5,
+    comment: 'The freeze GUI caught 4 x-rayers and closet cheaters in our first hour of running it. Highly recommended staff utility.',
+    imageUrl: '',
+    createdAt: Date.now() - 86400000 * 5
+  }
+];
+
+const defaultDeposits = [
+  {
+    id: 'dep_sample_1',
+    userId: 'usr_admin',
+    username: 'admin',
+    amount: 50.00,
+    currency: 'USD',
+    khqrRef: 'NXR-DEP-849102',
+    paymentMethod: 'KHQR (Bakong Cambodia)',
+    receiptImage: '',
+    status: 'APPROVED',
+    createdAt: Date.now() - 86400000 * 2,
+    approvedAt: Date.now() - 86400000 * 2
+  }
+];
+
+// Clean default state with pre-seeded Admin account and store catalog
 const defaultState = {
   adminSecret: process.env.ADMIN_SECRET || 'nexora_admin_2026',
   users: [
     {
       id: 'usr_admin',
       username: 'admin',
+      email: 'admin@nexora.dev',
       passwordHash: defaultAdminCreds.hash,
       salt: defaultAdminCreds.salt,
       role: 'ADMIN',
+      balance: 100.00,
+      purchasedPlugins: ['nexora-anticheat', 'nexora-core-staff', 'nexora-combat-log', 'nexora-security-bundle'],
       createdAt: Date.now(),
       lastLogin: null
     }
   ],
+  plugins: defaultPlugins,
+  reviews: defaultReviews,
+  deposits: defaultDeposits,
   downloads: [],
   totalDownloads: 0,
-  licenses: [],
   servers: [],
   violations: [],
-  playerBans: [],
-  pendingKicks: []
+  playerBans: []
 };
 
 /**
@@ -66,7 +246,7 @@ async function initDatabase() {
       pgPool = new Pool({
         connectionString: dbUrl,
         ssl: {
-          rejectUnauthorized: false // Required for Supabase SSL connection
+          rejectUnauthorized: false
         },
         max: 10,
         idleTimeoutMillis: 30000,
@@ -85,25 +265,76 @@ async function initDatabase() {
             timestamp BIGINT NOT NULL
           );
 
-          -- 2. Registered Admin Users Table
+          -- 2. Registered Users Table (with Wallet Balance & Library)
           CREATE TABLE IF NOT EXISTS nexora_users (
             id VARCHAR(64) PRIMARY KEY,
             username VARCHAR(64) UNIQUE NOT NULL,
+            email VARCHAR(255),
             password_hash VARCHAR(255) NOT NULL,
             salt VARCHAR(64) NOT NULL,
-            license_key VARCHAR(64) DEFAULT 'NONE',
-            role VARCHAR(32) NOT NULL DEFAULT 'ADMIN',
+            role VARCHAR(32) NOT NULL DEFAULT 'USER',
+            balance DOUBLE PRECISION NOT NULL DEFAULT 0.00,
+            purchased_plugins TEXT NOT NULL DEFAULT '[]',
             created_at BIGINT NOT NULL,
             last_login BIGINT
           );
 
-          -- Ensure license_key is nullable if it was NOT NULL previously
-          ALTER TABLE nexora_users ALTER COLUMN license_key DROP NOT NULL;
+          -- Ensure balance & purchased_plugins exist
+          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS balance DOUBLE PRECISION NOT NULL DEFAULT 0.00;
+          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS purchased_plugins TEXT NOT NULL DEFAULT '[]';
 
-          -- 3. Minecraft Servers Fleet Table
+          -- 3. Plugins Catalog Table
+          CREATE TABLE IF NOT EXISTS nexora_plugins (
+            id VARCHAR(64) PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            tagline TEXT,
+            description TEXT,
+            price DOUBLE PRECISION NOT NULL DEFAULT 0.00,
+            version VARCHAR(64) NOT NULL DEFAULT '1.0.0',
+            category VARCHAR(64) NOT NULL DEFAULT 'General',
+            tags TEXT DEFAULT '[]',
+            icon VARCHAR(64) DEFAULT '📦',
+            downloads INT DEFAULT 0,
+            rating DOUBLE PRECISION DEFAULT 5.0,
+            jar_file_name VARCHAR(255),
+            download_url TEXT,
+            github_release_url TEXT,
+            supported_versions VARCHAR(128),
+            software TEXT DEFAULT '["Paper"]',
+            screenshots TEXT DEFAULT '[]',
+            changelogs TEXT DEFAULT '[]'
+          );
+
+          -- 4. Reviews & Community Feedback Table
+          CREATE TABLE IF NOT EXISTS nexora_reviews (
+            id VARCHAR(64) PRIMARY KEY,
+            plugin_id VARCHAR(64) NOT NULL,
+            username VARCHAR(64) NOT NULL,
+            rating INT NOT NULL DEFAULT 5,
+            comment TEXT NOT NULL,
+            image_url TEXT,
+            created_at BIGINT NOT NULL
+          );
+
+          -- 5. KHQR Wallet Deposits Table
+          CREATE TABLE IF NOT EXISTS nexora_deposits (
+            id VARCHAR(64) PRIMARY KEY,
+            user_id VARCHAR(64) NOT NULL,
+            username VARCHAR(64) NOT NULL,
+            amount DOUBLE PRECISION NOT NULL,
+            currency VARCHAR(16) NOT NULL DEFAULT 'USD',
+            khqr_ref VARCHAR(128) NOT NULL,
+            payment_method VARCHAR(64) DEFAULT 'KHQR (Bakong Cambodia)',
+            receipt_image TEXT,
+            status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+            created_at BIGINT NOT NULL,
+            approved_at BIGINT
+          );
+
+          -- 6. Minecraft Servers Fleet Table
           CREATE TABLE IF NOT EXISTS nexora_servers (
             id VARCHAR(64) PRIMARY KEY,
-            license_key VARCHAR(64) DEFAULT 'COMMUNITY',
             server_name VARCHAR(255) NOT NULL,
             ip VARCHAR(64) NOT NULL,
             port INT NOT NULL DEFAULT 25565,
@@ -115,173 +346,165 @@ async function initDatabase() {
             last_heartbeat BIGINT NOT NULL,
             first_seen BIGINT NOT NULL
           );
-
-          -- 4. User Controlled Player Bans Table
-          CREATE TABLE IF NOT EXISTS nexora_player_bans (
-            id VARCHAR(64) PRIMARY KEY,
-            license_key VARCHAR(64) DEFAULT 'COMMUNITY',
-            server_name VARCHAR(255),
-            player_name VARCHAR(64) NOT NULL,
-            reason TEXT NOT NULL,
-            duration VARCHAR(64) NOT NULL DEFAULT 'PERMANENT',
-            banned_by VARCHAR(64) NOT NULL,
-            ip_banned BOOLEAN NOT NULL DEFAULT FALSE,
-            banned_at BIGINT NOT NULL,
-            expires_at BIGINT,
-            status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE'
-          );
-
-          -- 5. Violation History Log Table
-          CREATE TABLE IF NOT EXISTS nexora_violations (
-            id VARCHAR(64) PRIMARY KEY,
-            license_key VARCHAR(64) DEFAULT 'COMMUNITY',
-            server_name VARCHAR(255),
-            player_name VARCHAR(64) NOT NULL,
-            check_id VARCHAR(64) NOT NULL,
-            vl DOUBLE PRECISION NOT NULL DEFAULT 1.0,
-            details TEXT,
-            timestamp BIGINT NOT NULL
-          );
-
-          -- 6. Licenses (Optional/Legacy)
-          CREATE TABLE IF NOT EXISTS nexora_licenses (
-            key VARCHAR(64) PRIMARY KEY,
-            owner VARCHAR(255) NOT NULL,
-            email VARCHAR(255),
-            tier VARCHAR(64) NOT NULL DEFAULT 'LIFETIME',
-            status VARCHAR(64) NOT NULL DEFAULT 'ACTIVE',
-            bound_ip VARCHAR(64),
-            max_servers INT NOT NULL DEFAULT 1,
-            created_at BIGINT NOT NULL,
-            expires_at BIGINT,
-            ban_reason TEXT
-          );
-
-          -- Indexes for performance
-          CREATE INDEX IF NOT EXISTS idx_users_username ON nexora_users(username);
-          CREATE INDEX IF NOT EXISTS idx_downloads_ts ON nexora_downloads(timestamp DESC);
-          CREATE INDEX IF NOT EXISTS idx_violations_timestamp ON nexora_violations(timestamp DESC);
         `);
-        console.log('[Database] Supabase PostgreSQL tables verified/created successfully.');
-
-        // Load data from Supabase
-        const usrRes = await client.query('SELECT * FROM nexora_users');
-        const srvRes = await client.query('SELECT * FROM nexora_servers');
-        const banRes = await client.query('SELECT * FROM nexora_player_bans ORDER BY banned_at DESC LIMIT 500');
-        const vioRes = await client.query('SELECT * FROM nexora_violations ORDER BY timestamp DESC LIMIT 500');
-        const dlRes = await client.query('SELECT * FROM nexora_downloads ORDER BY timestamp DESC LIMIT 300');
-        const dlCountRes = await client.query('SELECT COUNT(*) as total FROM nexora_downloads');
-
-        let loadedUsers = usrRes.rows.map(r => ({
-          id: r.id,
-          username: r.username,
-          passwordHash: r.password_hash,
-          salt: r.salt,
-          role: r.role || 'ADMIN',
-          createdAt: Number(r.created_at),
-          lastLogin: r.last_login ? Number(r.last_login) : null
-        }));
-
-        // If no user exists in database, seed the default admin
-        if (loadedUsers.length === 0) {
-          const defaultAdmin = defaultState.users[0];
-          await client.query(`
-            INSERT INTO nexora_users (id, username, password_hash, salt, role, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (id) DO NOTHING;
-          `, [defaultAdmin.id, defaultAdmin.username, defaultAdmin.passwordHash, defaultAdmin.salt, defaultAdmin.role, defaultAdmin.createdAt]);
-          loadedUsers = [defaultAdmin];
-        }
-
-        memoryStore = {
-          adminSecret: defaultState.adminSecret,
-          users: loadedUsers,
-          downloads: dlRes.rows.map(r => ({
-            id: r.id,
-            ip: r.ip,
-            userAgent: r.user_agent,
-            timestamp: Number(r.timestamp)
-          })),
-          totalDownloads: Number(dlCountRes.rows[0]?.total || dlRes.rows.length),
-          licenses: [],
-          servers: srvRes.rows.map(r => ({
-            id: r.id,
-            serverName: r.server_name,
-            ip: r.ip,
-            port: r.port,
-            mcVersion: r.mc_version,
-            pluginVersion: r.plugin_version,
-            onlinePlayers: r.online_players,
-            tps: Number(r.tps),
-            status: r.status,
-            lastHeartbeat: Number(r.last_heartbeat),
-            firstSeen: Number(r.first_seen)
-          })),
-          playerBans: banRes.rows.map(r => ({
-            id: r.id,
-            serverName: r.server_name,
-            playerName: r.player_name,
-            reason: r.reason,
-            duration: r.duration,
-            bannedBy: r.banned_by,
-            ipBanned: r.ip_banned,
-            bannedAt: Number(r.banned_at),
-            expiresAt: r.expires_at ? Number(r.expires_at) : null,
-            status: r.status
-          })),
-          violations: vioRes.rows.map(r => ({
-            id: r.id,
-            serverName: r.server_name,
-            playerName: r.player_name,
-            checkId: r.check_id,
-            vl: Number(r.vl),
-            details: r.details,
-            timestamp: Number(r.timestamp)
-          })),
-          pendingKicks: []
-        };
+        console.log('[Database] Supabase PostgreSQL tables verified successfully.');
       } finally {
         client.release();
       }
+
+      // Load initial state from Supabase
+      memoryStore = await loadFromPostgres();
+      return;
     } catch (err) {
-      console.error('[Database] Failed to connect to Supabase PostgreSQL, falling back to local JSON store:', err.message);
-      pgPool = null;
-      loadLocalStore();
+      console.warn('[Database] Supabase connection failed, falling back to local JSON store:', err.message);
+    }
+  }
+
+  // Fallback: Local JSON File store
+  if (fs.existsSync(DATA_FILE)) {
+    try {
+      const raw = fs.readFileSync(DATA_FILE, 'utf8');
+      const loaded = JSON.parse(raw);
+      memoryStore = {
+        ...defaultState,
+        ...loaded,
+        users: loaded.users && loaded.users.length ? loaded.users : defaultState.users,
+        plugins: loaded.plugins && loaded.plugins.length ? loaded.plugins : defaultPlugins,
+        reviews: loaded.reviews && loaded.reviews.length ? loaded.reviews : defaultReviews,
+        deposits: loaded.deposits && loaded.deposits.length ? loaded.deposits : defaultDeposits
+      };
+      console.log(`[Database] Loaded local store from ${DATA_FILE}`);
+    } catch (err) {
+      console.error('[Database] Failed to parse local JSON store, using defaults:', err.message);
+      memoryStore = JSON.parse(JSON.stringify(defaultState));
     }
   } else {
-    console.log('[Database] No DATABASE_URL found. Running with local JSON database store.');
-    loadLocalStore();
+    memoryStore = JSON.parse(JSON.stringify(defaultState));
+    writeData(memoryStore);
+    console.log(`[Database] Created fresh local store at ${DATA_FILE}`);
   }
 }
 
-function loadLocalStore() {
+async function loadFromPostgres() {
+  const store = JSON.parse(JSON.stringify(defaultState));
+  if (!pgPool) return store;
+
+  const client = await pgPool.connect();
   try {
-    if (!fs.existsSync(DATA_FILE)) {
-      fs.writeFileSync(DATA_FILE, JSON.stringify(defaultState, null, 2), 'utf-8');
-      memoryStore = JSON.parse(JSON.stringify(defaultState));
-    } else {
-      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      parsed.users = parsed.users || [];
-      if (parsed.users.length === 0) {
-        parsed.users = JSON.parse(JSON.stringify(defaultState.users));
-      }
-      parsed.downloads = parsed.downloads || [];
-      parsed.totalDownloads = parsed.totalDownloads || parsed.downloads.length;
-      parsed.servers = parsed.servers || [];
-      parsed.violations = parsed.violations || [];
-      parsed.playerBans = parsed.playerBans || [];
-      parsed.pendingKicks = parsed.pendingKicks || [];
-      memoryStore = parsed;
+    // 1. Users
+    const usersRes = await client.query('SELECT * FROM nexora_users');
+    if (usersRes.rows.length > 0) {
+      store.users = usersRes.rows.map(r => ({
+        id: r.id,
+        username: r.username,
+        email: r.email,
+        passwordHash: r.password_hash,
+        salt: r.salt,
+        role: r.role,
+        balance: Number(r.balance || 0),
+        purchasedPlugins: JSON.parse(r.purchased_plugins || '[]'),
+        createdAt: Number(r.created_at),
+        lastLogin: r.last_login ? Number(r.last_login) : null
+      }));
     }
-  } catch (err) {
-    memoryStore = JSON.parse(JSON.stringify(defaultState));
+
+    // 2. Plugins
+    const pluginsRes = await client.query('SELECT * FROM nexora_plugins');
+    if (pluginsRes.rows.length > 0) {
+      store.plugins = pluginsRes.rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        tagline: r.tagline,
+        description: r.description,
+        price: Number(r.price || 0),
+        version: r.version,
+        category: r.category,
+        tags: JSON.parse(r.tags || '[]'),
+        icon: r.icon,
+        downloads: Number(r.downloads || 0),
+        rating: Number(r.rating || 5.0),
+        jarFileName: r.jar_file_name,
+        downloadUrl: r.download_url,
+        githubReleaseUrl: r.github_release_url,
+        supportedVersions: r.supported_versions,
+        software: JSON.parse(r.software || '["Paper"]'),
+        screenshots: JSON.parse(r.screenshots || '[]'),
+        changelogs: JSON.parse(r.changelogs || '[]')
+      }));
+    } else {
+      store.plugins = defaultPlugins;
+    }
+
+    // 3. Reviews
+    const revsRes = await client.query('SELECT * FROM nexora_reviews ORDER BY created_at DESC');
+    if (revsRes.rows.length > 0) {
+      store.reviews = revsRes.rows.map(r => ({
+        id: r.id,
+        pluginId: r.plugin_id,
+        username: r.username,
+        rating: Number(r.rating),
+        comment: r.comment,
+        imageUrl: r.image_url,
+        createdAt: Number(r.created_at)
+      }));
+    } else {
+      store.reviews = defaultReviews;
+    }
+
+    // 4. Deposits
+    const depsRes = await client.query('SELECT * FROM nexora_deposits ORDER BY created_at DESC');
+    if (depsRes.rows.length > 0) {
+      store.deposits = depsRes.rows.map(r => ({
+        id: r.id,
+        userId: r.user_id,
+        username: r.username,
+        amount: Number(r.amount),
+        currency: r.currency,
+        khqrRef: r.khqr_ref,
+        paymentMethod: r.payment_method,
+        receiptImage: r.receipt_image,
+        status: r.status,
+        createdAt: Number(r.created_at),
+        approvedAt: r.approved_at ? Number(r.approved_at) : null
+      }));
+    } else {
+      store.deposits = defaultDeposits;
+    }
+
+    // 5. Servers
+    const serversRes = await client.query('SELECT * FROM nexora_servers');
+    store.servers = serversRes.rows.map(r => ({
+      id: r.id,
+      serverName: r.server_name,
+      ip: r.ip,
+      port: r.port,
+      mcVersion: r.mc_version,
+      pluginVersion: r.plugin_version,
+      onlinePlayers: r.online_players,
+      tps: r.tps,
+      status: r.status,
+      lastHeartbeat: Number(r.last_heartbeat),
+      firstSeen: Number(r.first_seen)
+    }));
+
+    return store;
+  } finally {
+    client.release();
   }
 }
 
 function readData() {
   if (!memoryStore) {
-    loadLocalStore();
+    if (fs.existsSync(DATA_FILE)) {
+      try {
+        const raw = fs.readFileSync(DATA_FILE, 'utf8');
+        memoryStore = { ...defaultState, ...JSON.parse(raw) };
+      } catch {
+        memoryStore = JSON.parse(JSON.stringify(defaultState));
+      }
+    } else {
+      memoryStore = JSON.parse(JSON.stringify(defaultState));
+    }
   }
   return memoryStore;
 }
@@ -289,12 +512,12 @@ function readData() {
 function writeData(data) {
   memoryStore = data;
 
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error writing local file:', err);
-  }
+  // 1. Write to local JSON asynchronously
+  fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf8', (err) => {
+    if (err) console.error('[Database] Failed to write local JSON store:', err);
+  });
 
+  // 2. Synchronize to Supabase if connected
   if (pgPool) {
     syncToPostgres(data).catch(err => {
       console.error('[Database] Error syncing data to Supabase:', err.message);
@@ -307,63 +530,69 @@ async function syncToPostgres(data) {
   const client = await pgPool.connect();
   try {
     // Sync users
-    for (const u of data.users) {
+    for (const u of (data.users || [])) {
       await client.query(`
-        INSERT INTO nexora_users (id, username, password_hash, salt, role, created_at, last_login)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (id) DO UPDATE SET
-          password_hash = EXCLUDED.password_hash,
-          salt = EXCLUDED.salt,
-          last_login = EXCLUDED.last_login;
-      `, [u.id, u.username, u.passwordHash, u.salt, u.role || 'ADMIN', u.createdAt, u.lastLogin]);
-    }
-
-    // Sync latest downloads
-    for (const d of (data.downloads || []).slice(0, 30)) {
-      await client.query(`
-        INSERT INTO nexora_downloads (id, ip, user_agent, timestamp)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (id) DO NOTHING;
-      `, [d.id, d.ip, d.userAgent, d.timestamp]);
-    }
-
-    // Sync servers
-    for (const s of data.servers) {
-      await client.query(`
-        INSERT INTO nexora_servers (id, server_name, ip, port, mc_version, plugin_version, online_players, tps, status, last_heartbeat, first_seen)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        ON CONFLICT (id) DO UPDATE SET
-          server_name = EXCLUDED.server_name,
-          ip = EXCLUDED.ip,
-          port = EXCLUDED.port,
-          mc_version = EXCLUDED.mc_version,
-          plugin_version = EXCLUDED.plugin_version,
-          online_players = EXCLUDED.online_players,
-          tps = EXCLUDED.tps,
-          status = EXCLUDED.status,
-          last_heartbeat = EXCLUDED.last_heartbeat;
-      `, [s.id, s.serverName, s.ip, s.port, s.mcVersion, s.pluginVersion, s.onlinePlayers, s.tps, s.status, s.lastHeartbeat, s.firstSeen]);
-    }
-
-    // Sync player bans
-    for (const b of (data.playerBans || [])) {
-      await client.query(`
-        INSERT INTO nexora_player_bans (id, server_name, player_name, reason, duration, banned_by, ip_banned, banned_at, expires_at, status)
+        INSERT INTO nexora_users (id, username, email, password_hash, salt, role, balance, purchased_plugins, created_at, last_login)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         ON CONFLICT (id) DO UPDATE SET
-          status = EXCLUDED.status,
-          reason = EXCLUDED.reason;
-      `, [b.id, b.serverName, b.playerName, b.reason, b.duration, b.bannedBy, b.ipBanned, b.bannedAt, b.expiresAt, b.status]);
+          email = EXCLUDED.email,
+          password_hash = EXCLUDED.password_hash,
+          salt = EXCLUDED.salt,
+          balance = EXCLUDED.balance,
+          purchased_plugins = EXCLUDED.purchased_plugins,
+          last_login = EXCLUDED.last_login;
+      `, [u.id, u.username, u.email || '', u.passwordHash, u.salt, u.role || 'USER', u.balance || 0, JSON.stringify(u.purchasedPlugins || []), u.createdAt, u.lastLogin]);
     }
 
-    // Sync latest 20 violations
-    for (const v of data.violations.slice(0, 20)) {
+    // Sync plugins
+    for (const p of (data.plugins || [])) {
       await client.query(`
-        INSERT INTO nexora_violations (id, server_name, player_name, check_id, vl, details, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (id) DO NOTHING;
-      `, [v.id, v.serverName, v.playerName, v.checkId, v.vl, v.details, v.timestamp]);
+        INSERT INTO nexora_plugins (id, name, tagline, description, price, version, category, tags, icon, downloads, rating, jar_file_name, download_url, github_release_url, supported_versions, software, screenshots, changelogs)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          tagline = EXCLUDED.tagline,
+          description = EXCLUDED.description,
+          price = EXCLUDED.price,
+          version = EXCLUDED.version,
+          category = EXCLUDED.category,
+          tags = EXCLUDED.tags,
+          icon = EXCLUDED.icon,
+          downloads = EXCLUDED.downloads,
+          rating = EXCLUDED.rating,
+          jar_file_name = EXCLUDED.jar_file_name,
+          download_url = EXCLUDED.download_url,
+          github_release_url = EXCLUDED.github_release_url,
+          supported_versions = EXCLUDED.supported_versions,
+          software = EXCLUDED.software,
+          screenshots = EXCLUDED.screenshots,
+          changelogs = EXCLUDED.changelogs;
+      `, [p.id, p.name, p.tagline, p.description, p.price, p.version, p.category, JSON.stringify(p.tags || []), p.icon, p.downloads, p.rating, p.jarFileName, p.downloadUrl, p.githubReleaseUrl, p.supportedVersions, JSON.stringify(p.software || []), JSON.stringify(p.screenshots || []), JSON.stringify(p.changelogs || [])]);
     }
+
+    // Sync reviews
+    for (const r of (data.reviews || []).slice(0, 50)) {
+      await client.query(`
+        INSERT INTO nexora_reviews (id, plugin_id, username, rating, comment, image_url, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (id) DO UPDATE SET
+          comment = EXCLUDED.comment,
+          rating = EXCLUDED.rating,
+          image_url = EXCLUDED.image_url;
+      `, [r.id, r.pluginId, r.username, r.rating, r.comment, r.imageUrl || '', r.createdAt]);
+    }
+
+    // Sync deposits
+    for (const d of (data.deposits || [])) {
+      await client.query(`
+        INSERT INTO nexora_deposits (id, user_id, username, amount, currency, khqr_ref, payment_method, receipt_image, status, created_at, approved_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (id) DO UPDATE SET
+          status = EXCLUDED.status,
+          approved_at = EXCLUDED.approved_at;
+      `, [d.id, d.userId, d.username, d.amount, d.currency, d.khqrRef, d.paymentMethod, d.receiptImage || '', d.status, d.createdAt, d.approvedAt]);
+    }
+
   } finally {
     client.release();
   }

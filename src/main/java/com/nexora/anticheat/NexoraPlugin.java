@@ -26,7 +26,6 @@ public final class NexoraPlugin extends JavaPlugin {
     private AlertManager alertManager;
     private PunishmentManager punishmentManager;
     private com.nexora.anticheat.punishment.BanManager banManager;
-    private com.nexora.anticheat.license.LicenseManager licenseManager;
     private CheckManager checkManager;
     private StaffGuiManager staffGuiManager;
 
@@ -38,14 +37,7 @@ public final class NexoraPlugin extends JavaPlugin {
         this.configManager = new ConfigManager(this);
         this.configManager.loadAll();
 
-        // 1b. License Key Verification (Single-Host & Web Panel Authentication)
-        this.licenseManager = new com.nexora.anticheat.license.LicenseManager(this);
-        if (!this.licenseManager.verifyLicenseSync()) {
-            // License validation failed; plugin self-disabled
-            return;
-        }
-
-        // 1c. Initialize Bedrock / GeyserMC detection utility
+        // 1b. Initialize Bedrock / GeyserMC detection utility
         String bedrockPrefix = this.configManager.getConfig().getString("settings.bedrock.prefix", ".");
         com.nexora.anticheat.util.BedrockUtil.init(bedrockPrefix);
 
@@ -91,6 +83,10 @@ public final class NexoraPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (this.checkManager != null) {
+            this.checkManager.unregisterAll();
+        }
+
         if (this.storageManager != null) {
             this.storageManager.close();
         }
@@ -98,6 +94,9 @@ public final class NexoraPlugin extends JavaPlugin {
         if (this.playerManager != null) {
             this.playerManager.clearAll();
         }
+
+        org.bukkit.event.HandlerList.unregisterAll(this);
+        Bukkit.getScheduler().cancelTasks(this);
 
         Component disableMsg = MiniMessage.miniMessage().deserialize(
                 "<#FF0000><bold>Nexora AntiCheat</bold></#FF0000> <gray>has been disabled safely.</gray>"
@@ -135,10 +134,6 @@ public final class NexoraPlugin extends JavaPlugin {
 
     public com.nexora.anticheat.punishment.BanManager getBanManager() {
         return banManager;
-    }
-
-    public com.nexora.anticheat.license.LicenseManager getLicenseManager() {
-        return licenseManager;
     }
 
     public CheckManager getCheckManager() {

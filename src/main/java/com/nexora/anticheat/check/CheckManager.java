@@ -105,4 +105,11 @@ public class CheckManager {
     public Collection<Check> getAllChecks() {
         return Collections.unmodifiableCollection(checkMap.values());
     }
+
+    public void unregisterAll() {
+        for (Check check : checkMap.values()) {
+            org.bukkit.event.HandlerList.unregisterAll(check);
+        }
+        checkMap.clear();
+    }
 }

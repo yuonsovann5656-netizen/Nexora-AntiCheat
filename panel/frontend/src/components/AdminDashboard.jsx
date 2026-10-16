@@ -100,6 +100,20 @@ export default function AdminDashboard({ user, onLogout }) {
     }
   };
 
+  const handleUnbanServer = async (serverId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/servers/${serverId}/unban`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      setActionAlert({ type: res.ok ? 'success' : 'error', text: data.message || 'Server unbanned.' });
+      fetchData();
+      setTimeout(() => setActionAlert(null), 4000);
+    } catch {
+      setActionAlert({ type: 'error', text: 'Failed to unban server.' });
+    }
+  };
+
   const handleBanPlayer = async (e) => {
     e.preventDefault();
     if (!newBanPlayer.trim()) return;
@@ -535,13 +549,23 @@ export default function AdminDashboard({ user, onLogout }) {
                             Cancel
                           </button>
                         </div>
+                      ) : s.status === 'BANNED' ? (
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <span className="badge badge-danger" style={{ fontSize: '11px' }}>BANNED</span>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleUnbanServer(s.id)}
+                            style={{ fontSize: '11px', padding: '3px 8px' }}
+                          >
+                            Unban
+                          </button>
+                        </div>
                       ) : (
                         <button
                           className="btn btn-danger btn-sm"
-                          disabled={s.status === 'BANNED'}
                           onClick={() => setBanningServerId(s.id)}
                         >
-                          {s.status === 'BANNED' ? 'Banned' : 'Ban Server'}
+                          Ban Server
                         </button>
                       )}
                     </td>
