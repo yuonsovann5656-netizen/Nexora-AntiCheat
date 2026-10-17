@@ -36,6 +36,7 @@ export default function AdminLogin({ onLoginSuccess, onReturnHome }) {
           return;
         }
 
+        localStorage.setItem('bayon_user', JSON.stringify(data.user));
         localStorage.setItem('nexora_user', JSON.stringify(data.user));
         onLoginSuccess(data.user);
       } else {
@@ -66,13 +67,13 @@ export default function AdminLogin({ onLoginSuccess, onReturnHome }) {
           }}>
             <img
               src="/logo.png"
-              alt="Nexora Logo"
-              style={{ width: '42px', height: '42px', borderRadius: '8px' }}
+              alt="Bayon Logo"
+              style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'contain' }}
             />
           </div>
 
           <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#fff', letterSpacing: '0.8px', marginBottom: '4px' }}>
-            NEXORA ADMINISTRATOR PORTAL
+            BAYON ADMINISTRATOR PORTAL
           </h2>
           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>
             RESTRICTED ACCESS • OPERATOR AUTHENTICATION

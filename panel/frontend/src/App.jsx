@@ -17,7 +17,7 @@ import {
 export default function App() {
   const [user, setUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('nexora_user');
+      const saved = localStorage.getItem('bayon_user') || localStorage.getItem('nexora_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -78,7 +78,7 @@ export default function App() {
     
     if (navigator.share) {
       navigator.share({
-        title: `${plugin.name} - Nexora Technologies`,
+        title: `${plugin.name} - Bayon Technologies`,
         text: `${plugin.name}: ${plugin.tagline}`,
         url: shareUrl,
       }).catch(() => {});
@@ -132,6 +132,7 @@ export default function App() {
       if (res.ok) {
         const freshUser = await res.json();
         setUser(freshUser);
+        localStorage.setItem('bayon_user', JSON.stringify(freshUser));
         localStorage.setItem('nexora_user', JSON.stringify(freshUser));
       }
     } catch (err) {
@@ -140,6 +141,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('bayon_user');
     localStorage.removeItem('nexora_user');
     setUser(null);
     setShowAdminPanel(false);
@@ -258,17 +260,17 @@ export default function App() {
           <div className="brand-logo" onClick={() => { setViewFilter('ALL'); setSelectedCategory('ALL'); }}>
             <img
               src="/logo.png"
-              alt="Nexora Technologies Logo"
+              alt="Bayon Technologies Logo"
               style={{
-                width: '34px',
-                height: '34px',
+                width: '36px',
+                height: '36px',
                 borderRadius: '8px',
-                objectFit: 'cover',
+                objectFit: 'contain',
                 boxShadow: '0 0 14px rgba(255, 255, 255, 0.18)'
               }}
             />
             <div>
-              <div className="brand-text">NEXORA</div>
+              <div className="brand-text">BAYON</div>
               <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#8892a4', lineHeight: 1 }}>
                 TECHNOLOGIES
               </div>
@@ -429,8 +431,8 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '14px' }}>
             <img
               src="/logo.png"
-              alt="Nexora Logo"
-              style={{ width: '40px', height: '40px', borderRadius: '10px', boxShadow: '0 0 25px rgba(255, 255, 255, 0.2)' }}
+              alt="Bayon Logo"
+              style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'contain', boxShadow: '0 0 25px rgba(255, 255, 255, 0.2)' }}
             />
             <span className="badge badge-green" style={{ fontSize: '11px', letterSpacing: '1px' }}>
               POWERED BY SHOTDI • 24/7 ONLINE
@@ -598,10 +600,10 @@ export default function App() {
       <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '40px 28px', marginTop: '50px', background: 'var(--bg-secondary)' }}>
         <div style={{ maxWidth: '1300px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img src="/logo.png" alt="Nexora Logo" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
+            <img src="/logo.png" alt="Bayon Logo" style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'contain' }} />
             <div>
               <div style={{ fontSize: '13px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' }}>
-                NEXORA TECHNOLOGIES
+                BAYON TECHNOLOGIES
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                 Powered by ShotDi Core · Private Binary Infrastructure
@@ -763,6 +765,7 @@ export default function App() {
         user={user}
         onUpdateUser={(updatedUser) => {
           setUser(updatedUser);
+          localStorage.setItem('bayon_user', JSON.stringify(updatedUser));
           localStorage.setItem('nexora_user', JSON.stringify(updatedUser));
         }}
         onLogout={handleLogout}

@@ -37,6 +37,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        localStorage.setItem('bayon_user', JSON.stringify(data.user));
         localStorage.setItem('nexora_user', JSON.stringify(data.user));
         onAuthSuccess(data.user);
         onClose();
@@ -90,6 +91,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           setTab('verify');
           setSuccessMsg('Account created! Please enter the 6-digit verification code.');
         } else {
+          localStorage.setItem('bayon_user', JSON.stringify(data.user));
           localStorage.setItem('nexora_user', JSON.stringify(data.user));
           onAuthSuccess(data.user);
           onClose();
@@ -130,6 +132,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       if (res.ok && data.success) {
         setSuccessMsg('Email verified successfully! Logging you in...');
         setTimeout(() => {
+          localStorage.setItem('bayon_user', JSON.stringify(data.user));
           localStorage.setItem('nexora_user', JSON.stringify(data.user));
           onAuthSuccess(data.user);
           onClose();
@@ -179,12 +182,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
             <img
               src="/logo.png"
-              alt="Nexora Technologies Logo"
-              style={{ width: '48px', height: '48px', borderRadius: '10px', boxShadow: '0 0 20px rgba(255, 255, 255, 0.15)' }}
+              alt="Bayon Technologies Logo"
+              style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'contain', boxShadow: '0 0 20px rgba(255, 255, 255, 0.15)' }}
             />
           </div>
           <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '1px', color: '#fff' }}>
-            NEXORA TECHNOLOGIES
+            BAYON TECHNOLOGIES
           </div>
           <div style={{ fontSize: '11px', color: '#8892a4', letterSpacing: '0.5px', marginTop: '3px' }}>
             SHOTDI SECURE AUTHENTICATION & ACCESS GATE

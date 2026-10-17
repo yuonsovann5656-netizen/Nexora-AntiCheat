@@ -386,12 +386,12 @@ export default function AdminPanel({
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img
             src="/logo.png"
-            alt="Nexora Logo"
-            style={{ width: '38px', height: '38px', borderRadius: '8px', boxShadow: '0 0 14px rgba(255, 255, 255, 0.15)' }}
+            alt="Bayon Logo"
+            style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'contain', boxShadow: '0 0 14px rgba(255, 255, 255, 0.15)' }}
           />
           <div>
             <div style={{ fontSize: '16px', fontWeight: 800, color: '#fff', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>NEXORA ADMINISTRATOR PANEL</span>
+              <span>BAYON ADMINISTRATOR PANEL</span>
               <span className="badge badge-red" style={{ fontSize: '10px' }}>ROOT ACCESS</span>
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
@@ -870,7 +870,7 @@ export default function AdminPanel({
                     <label className="form-label">Plugin ID (slug)</label>
                     <input
                       className="input-field mono"
-                      placeholder="e.g. nexora-dupe-fixer"
+                      placeholder="e.g. bayon-dupe-fixer"
                       value={newPluginId}
                       onChange={e => setNewPluginId(e.target.value)}
                     />
@@ -879,7 +879,7 @@ export default function AdminPanel({
                     <label className="form-label">Display Name</label>
                     <input
                       className="input-field"
-                      placeholder="e.g. Nexora Dupe Fixer"
+                      placeholder="e.g. Bayon Dupe Fixer"
                       value={newPluginName}
                       onChange={e => setNewPluginName(e.target.value)}
                     />

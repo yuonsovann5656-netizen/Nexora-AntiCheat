@@ -995,9 +995,9 @@ export default function AdminDashboard({ user, onLogout }) {
       {/* Admin Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <div className="brand-icon-box">🛡️</div>
+          <img src="/logo.png" alt="Bayon Logo" style={{ width: '28px', height: '28px', borderRadius: '6px', objectFit: 'contain', marginRight: '8px' }} />
           <div className="brand-text-box">
-            <div className="brand-title">NEXORA<span>ADMIN</span></div>
+            <div className="brand-title">BAYON<span>ADMIN</span></div>
             <div className="brand-subtitle">Fleet Controller</div>
           </div>
         </div>

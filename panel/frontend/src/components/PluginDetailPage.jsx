@@ -216,9 +216,9 @@ export default function PluginDetailPage({
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img src="/logo.png" alt="Logo" style={{ width: '24px', height: '24px', borderRadius: '6px' }} />
+            <img src="/logo.png" alt="Bayon Logo" style={{ width: '28px', height: '28px', borderRadius: '6px', objectFit: 'contain' }} />
             <span style={{ fontSize: '13px', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>
-              NEXORA • SHOTDI CORE
+              BAYON • SHOTDI CORE
             </span>
           </div>
 
@@ -665,9 +665,9 @@ export default function PluginDetailPage({
       <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '28px', textAlign: 'center', background: 'var(--bg-secondary)', marginTop: 'auto' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img src="/logo.png" alt="Logo" style={{ width: '22px', height: '22px', borderRadius: '4px' }} />
+            <img src="/logo.png" alt="Bayon Logo" style={{ width: '26px', height: '26px', borderRadius: '4px', objectFit: 'contain' }} />
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)' }}>
-              NEXORA TECHNOLOGIES • POWERED BY SHOTDI
+              BAYON TECHNOLOGIES • POWERED BY SHOTDI
             </span>
           </div>
 
