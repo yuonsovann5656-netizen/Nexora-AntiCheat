@@ -51,7 +51,7 @@ export default function AdminPanel({
   const [uploading, setUploading] = useState(false);
 
   // Balance adjust modal/state
-  const [grantPluginId, setGrantPluginId] = useState('nexora-anticheat');
+  const [grantPluginId, setGrantPluginId] = useState('bayon-anticheat');
 
   useEffect(() => {
     fetchAdminData();
