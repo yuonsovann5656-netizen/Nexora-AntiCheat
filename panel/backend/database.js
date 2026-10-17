@@ -309,6 +309,19 @@ async function initDatabase() {
           ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS purchased_plugins TEXT NOT NULL DEFAULT '[]';
           ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
           ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(64);
+          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS license_key VARCHAR(128) DEFAULT '';
+
+          -- Fix legacy license_key not-null constraint if table was created in an older schema version
+          DO $$ 
+          BEGIN
+              IF EXISTS (
+                  SELECT 1 FROM information_schema.columns 
+                  WHERE table_name = 'nexora_users' AND column_name = 'license_key'
+              ) THEN
+                  ALTER TABLE nexora_users ALTER COLUMN license_key DROP NOT NULL;
+                  ALTER TABLE nexora_users ALTER COLUMN license_key SET DEFAULT '';
+              END IF;
+          END $$;
 
           -- 3. Plugins Catalog Table
           CREATE TABLE IF NOT EXISTS nexora_plugins (
@@ -439,6 +452,7 @@ async function loadFromPostgres() {
         emailVerified: r.email_verified === true || r.role === 'ADMIN',
         verificationCode: r.verification_code || null,
         purchasedPlugins: JSON.parse(r.purchased_plugins || '[]'),
+        licenseKey: r.license_key || null,
         createdAt: Number(r.created_at),
         lastLogin: r.last_login ? Number(r.last_login) : null
       }));
@@ -615,8 +629,8 @@ async function syncToPostgres(data) {
     // Sync users
     for (const u of (data.users || [])) {
       await client.query(`
-        INSERT INTO nexora_users (id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, verification_code, created_at, last_login)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO nexora_users (id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, verification_code, created_at, last_login, license_key)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         ON CONFLICT (id) DO UPDATE SET
           email = EXCLUDED.email,
           password_hash = EXCLUDED.password_hash,
@@ -625,8 +639,9 @@ async function syncToPostgres(data) {
           purchased_plugins = EXCLUDED.purchased_plugins,
           email_verified = EXCLUDED.email_verified,
           verification_code = EXCLUDED.verification_code,
-          last_login = EXCLUDED.last_login;
-      `, [u.id, u.username, u.email || '', u.passwordHash, u.salt, u.role || 'USER', u.balance || 0, JSON.stringify(u.purchasedPlugins || []), u.emailVerified === true, u.verificationCode || null, u.createdAt, u.lastLogin]);
+          last_login = EXCLUDED.last_login,
+          license_key = EXCLUDED.license_key;
+      `, [u.id, u.username, u.email || '', u.passwordHash, u.salt, u.role || 'USER', u.balance || 0, JSON.stringify(u.purchasedPlugins || []), u.emailVerified === true, u.verificationCode || null, u.createdAt, u.lastLogin, u.licenseKey || '']);
     }
 
     // Sync plugins

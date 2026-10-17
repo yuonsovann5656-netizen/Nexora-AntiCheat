@@ -30,6 +30,19 @@ ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS balance DOUBLE PRECISION NOT N
 ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS purchased_plugins TEXT NOT NULL DEFAULT '[]';
 ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(64);
+ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS license_key VARCHAR(128) DEFAULT '';
+
+-- Fix legacy license_key not-null constraint if table was created in an older schema version
+DO $$ 
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'nexora_users' AND column_name = 'license_key'
+    ) THEN
+        ALTER TABLE nexora_users ALTER COLUMN license_key DROP NOT NULL;
+        ALTER TABLE nexora_users ALTER COLUMN license_key SET DEFAULT '';
+    END IF;
+END $$;
 
 -- 2. Plugins Catalog Table (Marketplace Products)
 CREATE TABLE IF NOT EXISTS nexora_plugins (
@@ -50,8 +63,12 @@ CREATE TABLE IF NOT EXISTS nexora_plugins (
     supported_versions VARCHAR(128) DEFAULT '1.20 - 1.21.4',
     software TEXT DEFAULT '["Paper","Purpur","Folia"]',
     screenshots TEXT DEFAULT '[]',
-    changelogs TEXT DEFAULT '[]'
+    changelogs TEXT DEFAULT '[]',
+    logo_url TEXT,
+    banner_url TEXT
 );
+ALTER TABLE nexora_plugins ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE nexora_plugins ADD COLUMN IF NOT EXISTS banner_url TEXT;
 
 -- 3. Reviews & Feedback Table (Real ratings, comments, screenshots & upvote likes)
 CREATE TABLE IF NOT EXISTS nexora_reviews (
@@ -132,41 +149,44 @@ CREATE INDEX IF NOT EXISTS idx_downloads_timestamp ON nexora_downloads(timestamp
 
 -- Seed Admin Account (username: admin, password: admin)
 INSERT INTO nexora_users (
-    id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, created_at
+    id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, created_at, license_key
 ) VALUES (
     'usr_admin',
     'admin',
-    'admin@nexora.dev',
+    'admin@bayon.dev',
     '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918',
     'salt_nexora_admin_seed',
     'ADMIN',
     500.00,
-    '["nexora-anticheat","nexora-core-staff","nexora-combat-log","nexora-security-bundle"]',
+    '["bayon-anticheat","nexora-core-staff","nexora-combat-log","nexora-security-bundle"]',
     TRUE,
-    1730000000000
-) ON CONFLICT (id) DO UPDATE SET role = 'ADMIN', email_verified = TRUE;
+    1730000000000,
+    'ADMIN-BAYON-2026'
+) ON CONFLICT (id) DO UPDATE SET role = 'ADMIN', email_verified = TRUE, license_key = 'ADMIN-BAYON-2026';
 
 -- Seed Marketplace Plugins
 INSERT INTO nexora_plugins (
-    id, name, tagline, description, price, version, category, tags, icon, downloads, rating, jar_file_name, download_url, supported_versions, software, changelogs
+    id, name, tagline, description, price, version, category, tags, icon, downloads, rating, jar_file_name, download_url, supported_versions, software, changelogs, logo_url, banner_url
 ) VALUES 
 (
-    'nexora-anticheat',
-    'Nexora AntiCheat',
+    'bayon-anticheat',
+    'Bayon AntiCheat',
     'High-Performance Heuristic & Packet Anti-Cheat Engine',
     'Advanced behavioral anti-cheat solution featuring 26+ heuristic detection algorithms across Movement, Combat, World, and Packet vectors. Optimized for Paper, Purpur, and Folia regionized threading with automated lag and tick compensation.',
     19.99,
     '1.0.0',
     'Security',
-    '["AntiCheat","Folia","Paper","Combat","Movement","Zero-Lag"]',
+    '["AntiCheat","Bayon","Folia","Paper","Combat","Movement","Zero-Lag"]',
     '🛡️',
     1420,
     5.0,
-    'NexoraAntiCheat-1.0.0.jar',
-    '/api/plugins/nexora-anticheat/download',
+    'BayonAntiCheat-1.0.0.jar',
+    '/api/plugins/bayon-anticheat/download',
     '1.20 - 1.21.4',
     '["Paper","Purpur","Folia"]',
-    '[{"version":"1.0.0","date":"October 16, 2026","title":"Initial Enterprise Release","notes":["Removed all licensing restrictions for completely free community deployment.","Added 26+ high precision checks: KillAura, Reach, Velocity, Speed, Fly, BadPackets.","Full Folia region-threading compliance."]}]'
+    '[{"version":"1.0.0","date":"October 16, 2026","title":"Initial Enterprise Release","notes":["Removed all licensing restrictions for completely free community deployment.","Added 26+ high precision checks: KillAura, Reach, Velocity, Speed, Fly, BadPackets.","Full Folia region-threading compliance."]}]',
+    '/logo.png',
+    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80'
 ),
 (
     'nexora-core-staff',
