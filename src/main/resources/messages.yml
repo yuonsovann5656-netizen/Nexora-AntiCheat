@@ -1,9 +1,9 @@
 # ==========================================================
-#              NEXORA ANTICHEAT - MESSAGES CONFIG
+#              BAYON ANTICHEAT - MESSAGES CONFIG
 #             MiniMessage & Multi-Language Support
 # ==========================================================
 
-prefix: "<#FF0000><bold>Nexora</bold></#FF0000> <dark_gray>»</dark_gray> "
+prefix: "<#FF0000><bold>Bayon</bold></#FF0000> <dark_gray>»</dark_gray> "
 
 general:
   no-permission: "<prefix><red>You do not have permission to execute this command.</red>"
@@ -20,7 +20,7 @@ alerts:
   click-teleport: "/tp <player>"
 
 info:
-  header: "<#FF0000>━━━━━━━━━━━━━━━ <bold>Nexora Player Info</bold> ━━━━━━━━━━━━━━━</#FF0000>"
+  header: "<#FF0000>━━━━━━━━━━━━━━━ <bold>Bayon Player Info</bold> ━━━━━━━━━━━━━━━</#FF0000>"
   player: "<gray>Player: <yellow><player></yellow> <dark_gray>(<white><uuid></white>)</dark_gray>"
   ping-tps: "<gray>Ping: <green><ping>ms</green> | Server TPS: <green><tps></green>"
   client-brand: "<gray>Client Brand: <aqua><brand></aqua>"
@@ -47,19 +47,19 @@ exempt:
 
 punish:
   warn: "<prefix><red><bold>WARNING:</bold> Unfair advantage detected. Please disable any illegal modifications.</red>"
-  kick-broadcast: "<prefix><red><player></red> <gray>was kicked by <#FF0000>Nexora</#FF0000> (<yellow><check></yellow> | Kick <kicks>/<max_kicks>).</gray>"
-  ban-broadcast: "<prefix><red><player></red> <gray>was banned by <#FF0000>Nexora</#FF0000> for <aqua><duration></aqua> (<yellow><check></yellow>).</gray>"
-  kick-reason: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>Disconnected: Unfair advantage detected (<yellow><check></yellow>).</red>\n<gray>If you believe this is a false flag, contact server staff.</gray>"
-  progressive-kick-reason: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>Disconnected for suspicious gameplay (<yellow><check></yellow>).</red>\n<yellow>Warning: <gold><kicks></gold>/<gold><max_kicks></gold> kicks before an automatic ban!</yellow>"
-  ban-reason: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>You are permanently banned for cheating (<yellow><check></yellow>).</red>\n<gray>Appeal at our support portal.</gray>"
-  ban-screen: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>You are banned from this server.</red>\n<gray>Reason: <yellow><reason></yellow>\nDuration: <aqua><duration></aqua>\nExpires: <gold><expires></gold>\nAppeal at our community Discord.</gray>"
-  progressive-ban-screen: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>You have been banned for suspicious modifications.</red>\n<gray>Check: <yellow><check></yellow>\nDuration: <aqua><duration></aqua> (Tier <tier>/4)\nExpires: Automatically after duration expires.</gray>"
-  ip-ban-screen: "<#FF0000><bold>NEXORA ANTICHEAT</bold></#FF0000>\n\n<red>Your IP address is permanently banned.</red>\n<gray>Reason: <yellow><reason></yellow></gray>\n<gray>Banned by: <white><banner></white></gray>"
-  cracked-ban: "<#FF0000><bold>NEXORA SECURITY</bold></#FF0000>\n\n<red>Premium Mojang account required.\nOffline / cracked clients are forbidden on this server.</red>"
-  cracked-kick: "<#FF0000><bold>NEXORA SECURITY</bold></#FF0000>\n\n<red>Premium Mojang account required.\nPlease buy Minecraft at minecraft.net.</red>"
+  kick-broadcast: "<prefix><red><player></red> <gray>was kicked by <#FF0000>Bayon</#FF0000> (<yellow><check></yellow> | Kick <kicks>/<max_kicks>).</gray>"
+  ban-broadcast: "<prefix><red><player></red> <gray>was banned by <#FF0000>Bayon</#FF0000> for <aqua><duration></aqua> (<yellow><check></yellow>).</gray>"
+  kick-reason: "<#FF0000><bold>BAYON ANTICHEAT</bold></#FF0000>\n\n<red>Disconnected: Unfair advantage detected (<yellow><check></yellow>).</red>\n<gray>If you believe this is a false flag, contact server staff.</gray>"
+  progressive-kick-reason: "<#FF0000><bold>BAYON ANTICHEAT</bold></#FF0000>\n\n<red>Disconnected for suspicious gameplay (<yellow><check></yellow>).</red>\n<yellow>Warning: <gold><kicks></gold>/<gold><max_kicks></gold> kicks before an automatic ban!</yellow>"
+  ban-reason: "<#FF0000><bold>BAYON ANTICHEAT</bold></#FF0000>\n\n<red>You are permanently banned for cheating (<yellow><check></yellow>).</red>\n<gray>Appeal at our support portal.</gray>"
+  ban-screen: "<#FF0000><bold>BAYON ANTICHEAT</bold></#FF0000>\n\n<red>You are banned from this server.</red>\n<gray>Reason: <yellow><reason></yellow>\nDuration: <aqua><duration></aqua>\nExpires: <gold><expires></gold>\nAppeal at our community Discord.</gray>"
+  progressive-ban-screen: "<#FF0000><bold>BAYON ANTICHEAT</bold></#FF0000>\n\n<red>You have been banned for suspicious modifications.</red>\n<gray>Check: <yellow><check></yellow>\nDuration: <aqua><duration></aqua> (Tier <tier>/4)\nExpires: Automatically after duration expires.</gray>"
+  ip-ban-screen: "<#FF0000><bold>BAYON ANTICHEAT</bold></#FF0000>\n\n<red>Your IP address is permanently banned.</red>\n<gray>Reason: <yellow><reason></yellow></gray>\n<gray>Banned by: <white><banner></white></gray>"
+  cracked-ban: "<#FF0000><bold>BAYON SECURITY</bold></#FF0000>\n\n<red>Premium Mojang account required.\nOffline / cracked clients are forbidden on this server.</red>"
+  cracked-kick: "<#FF0000><bold>BAYON SECURITY</bold></#FF0000>\n\n<red>Premium Mojang account required.\nPlease buy Minecraft at minecraft.net.</red>"
   unban-success: "<prefix><green>Player <yellow><target></yellow> has been unbanned and their kick counter reset.</green>"
   unban-ip-success: "<prefix><green>IP address <yellow><target></yellow> has been unbanned.</green>"
-  block: "<prefix><red>Suspicious interaction was blocked by <#FF0000>Nexora</#FF0000>.</red>"
+  block: "<prefix><red>Suspicious interaction was blocked by <#FF0000>Bayon</#FF0000>.</red>"
   xray-blocked: "<prefix><red>This ore crumbled away as you touched it...</red>"
 
 bans:

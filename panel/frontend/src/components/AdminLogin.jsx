@@ -57,18 +57,12 @@ export default function AdminLogin({ onLoginSuccess, onReturnHome }) {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '64px',
-            height: '64px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--border-bright)',
-            borderRadius: '14px',
-            marginBottom: '16px',
-            boxShadow: '0 0 25px rgba(255, 255, 255, 0.1)'
+            marginBottom: '16px'
           }}>
             <img
               src="/logo.png"
               alt="Bayon Logo"
-              style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'contain' }}
+              style={{ width: '64px', height: '64px', objectFit: 'contain' }}
             />
           </div>
 

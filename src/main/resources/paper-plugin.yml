@@ -1,16 +1,21 @@
-name: NexoraAntiCheat
+name: BayonAntiCheat
 version: '1.0.0'
 main: com.nexora.anticheat.NexoraPlugin
 api-version: '26.2'
 description: Enterprise-grade, lag-compensated anticheat plugin for modern Paper servers.
 authors:
-  - Antigravity
-  - Nexora Security Team
-website: https://github.com/nexora/anticheat
+  - Bayon Security Team
+website: https://github.com/bayon/anticheat
 
 permissions:
+  bayon.admin:
+    description: Full administrative access to Bayon AntiCheat
+    default: op
+    children:
+      bayon.alerts: true
+      nexora.admin: true
   nexora.admin:
-    description: Full administrative access to Nexora AntiCheat
+    description: Full administrative access to Bayon AntiCheat (legacy alias)
     default: op
     children:
       nexora.alerts: true

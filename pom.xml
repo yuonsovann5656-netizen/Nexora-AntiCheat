@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.nexora.anticheat</groupId>
-    <artifactId>nexora-anticheat</artifactId>
+    <artifactId>bayon-anticheat</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>NexoraAntiCheat</name>
+    <name>BayonAntiCheat</name>
     <description>Enterprise-grade, lag-compensated anticheat for modern Paper servers</description>
 
     <properties>

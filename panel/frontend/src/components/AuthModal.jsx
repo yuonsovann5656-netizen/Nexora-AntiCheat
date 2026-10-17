@@ -183,7 +183,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             <img
               src="/logo.png"
               alt="Bayon Technologies Logo"
-              style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'contain', boxShadow: '0 0 20px rgba(255, 255, 255, 0.15)' }}
+              style={{ width: '56px', height: '56px', objectFit: 'contain' }}
             />
           </div>
           <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '1px', color: '#fff' }}>

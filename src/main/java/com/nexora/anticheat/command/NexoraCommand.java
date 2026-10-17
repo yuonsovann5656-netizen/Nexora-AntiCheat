@@ -399,25 +399,25 @@ public class NexoraCommand {
                             return 1;
                         })));
 
-        // Register main command with aliases /nexora and /nxac
-        commands.register(root.build(), "Nexora AntiCheat main administration command", List.of("nexora", "nxac"));
+        // Register main command with aliases /bayon, /bayonanti, /nexora and /nxac
+        commands.register(root.build(), "Bayon AntiCheat main administration command", List.of("bayon", "bayonanti", "nexora", "nxac"));
     }
 
     private void sendHelp(CommandSender sender) {
         MiniMessage mm = MiniMessage.miniMessage();
-        sender.sendMessage(mm.deserialize("<#FF0000>━━━━━━━━━━━━━ <bold>Nexora AntiCheat Help</bold> ━━━━━━━━━━━━━</#FF0000>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti help</red> <dark_gray>-</dark_gray> <gray>Displays this command overview</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti reload</red> <dark_gray>-</dark_gray> <gray>Reloads configuration, messages & checks</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti alerts [on|off]</red> <dark_gray>-</dark_gray> <gray>Toggles staff violation notifications</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti info <player></red> <dark_gray>-</dark_gray> <gray>View player telemetry and violation stats</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti history <player></red> <dark_gray>-</dark_gray> <gray>View logged violations history</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti reset <player></red> <dark_gray>-</dark_gray> <gray>Clears active violation levels for player</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti punish <player> <reason></red> <dark_gray>-</dark_gray> <gray>Manually punish player</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti exempt <player> [duration]</red> <dark_gray>-</dark_gray> <gray>Temporarily exempt player</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti unban <player|ip></red> <dark_gray>-</dark_gray> <gray>Pardon a banned player or IP address</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti bans <player></red> <dark_gray>-</dark_gray> <gray>View ban records and escalation history</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti gui</red> <dark_gray>-</dark_gray> <gray>Open interactive staff overview GUI</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/nxanti debug <check></red> <dark_gray>-</dark_gray> <gray>Toggle check debugging</gray>"));
+        sender.sendMessage(mm.deserialize("<#FF0000>━━━━━━━━━━━━━ <bold>Bayon AntiCheat Help</bold> ━━━━━━━━━━━━━</#FF0000>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon help</red> <dark_gray>-</dark_gray> <gray>Displays this command overview</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon reload</red> <dark_gray>-</dark_gray> <gray>Reloads configuration, messages & checks</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon alerts [on|off]</red> <dark_gray>-</dark_gray> <gray>Toggles staff violation notifications</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon info <player></red> <dark_gray>-</dark_gray> <gray>View player telemetry and violation stats</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon history <player></red> <dark_gray>-</dark_gray> <gray>View logged violations history</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon reset <player></red> <dark_gray>-</dark_gray> <gray>Clears active violation levels for player</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon punish <player> <reason></red> <dark_gray>-</dark_gray> <gray>Manually punish player</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon exempt <player> [duration]</red> <dark_gray>-</dark_gray> <gray>Temporarily exempt player</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon unban <player|ip></red> <dark_gray>-</dark_gray> <gray>Pardon a banned player or IP address</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon bans <player></red> <dark_gray>-</dark_gray> <gray>View ban records and escalation history</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon gui</red> <dark_gray>-</dark_gray> <gray>Open interactive staff overview GUI</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/bayon debug <check></red> <dark_gray>-</dark_gray> <gray>Toggle check debugging</gray>"));
         sender.sendMessage(mm.deserialize("<#FF0000>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF0000>"));
     }
 

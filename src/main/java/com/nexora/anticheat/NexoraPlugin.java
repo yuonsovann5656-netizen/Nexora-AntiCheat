@@ -75,7 +75,7 @@ public final class NexoraPlugin extends JavaPlugin {
 
         long duration = System.currentTimeMillis() - startTime;
         Component enableMsg = MiniMessage.miniMessage().deserialize(
-                "<#FF0000><bold>Nexora AntiCheat</bold></#FF0000> <green>v" + getPluginMeta().getVersion()
+                "<#FF0000><bold>Bayon AntiCheat</bold></#FF0000> <green>v" + getPluginMeta().getVersion()
                         + " enabled successfully in " + duration + "ms on Paper 26.2!</green>"
         );
         Bukkit.getConsoleSender().sendMessage(enableMsg);
@@ -99,7 +99,7 @@ public final class NexoraPlugin extends JavaPlugin {
         Bukkit.getScheduler().cancelTasks(this);
 
         Component disableMsg = MiniMessage.miniMessage().deserialize(
-                "<#FF0000><bold>Nexora AntiCheat</bold></#FF0000> <gray>has been disabled safely.</gray>"
+                "<#FF0000><bold>Bayon AntiCheat</bold></#FF0000> <gray>has been disabled safely.</gray>"
         );
         Bukkit.getConsoleSender().sendMessage(disableMsg);
     }

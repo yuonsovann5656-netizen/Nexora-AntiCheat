@@ -262,11 +262,9 @@ export default function App() {
               src="/logo.png"
               alt="Bayon Technologies Logo"
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                objectFit: 'contain',
-                boxShadow: '0 0 14px rgba(255, 255, 255, 0.18)'
+                width: '38px',
+                height: '38px',
+                objectFit: 'contain'
               }}
             />
             <div>
@@ -432,7 +430,7 @@ export default function App() {
             <img
               src="/logo.png"
               alt="Bayon Logo"
-              style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'contain', boxShadow: '0 0 25px rgba(255, 255, 255, 0.2)' }}
+              style={{ width: '56px', height: '56px', objectFit: 'contain' }}
             />
             <span className="badge badge-green" style={{ fontSize: '11px', letterSpacing: '1px' }}>
               POWERED BY SHOTDI • 24/7 ONLINE

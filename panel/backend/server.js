@@ -496,12 +496,12 @@ app.post('/api/plugins/:id/buy', (req, res) => {
  */
 app.get(['/api/plugins/:id/download', '/api/download/:file', '/download'], (req, res) => {
   const data = readData();
-  const rawId = req.params.id || (req.params.file ? req.params.file.replace(/\.jar$/i, '') : 'nexora-anticheat');
+  const rawId = req.params.id || (req.params.file ? req.params.file.replace(/\.jar$/i, '') : 'bayon-anticheat');
 
-  const plugin = (data.plugins || []).find(p => p.id === rawId || p.id === 'nexora-anticheat') || {
-    id: 'nexora-anticheat',
-    name: 'Nexora AntiCheat',
-    jarFileName: 'NexoraAntiCheat-1.0.0.jar'
+  const plugin = (data.plugins || []).find(p => p.id === rawId || p.id === 'bayon-anticheat' || p.id === 'nexora-anticheat') || {
+    id: 'bayon-anticheat',
+    name: 'Bayon AntiCheat',
+    jarFileName: 'BayonAntiCheat-1.0.0.jar'
   };
 
   // Determine user account or client IP identifier
@@ -536,17 +536,26 @@ app.get(['/api/plugins/:id/download', '/api/download/:file', '/download'], (req,
 
   // Locate binary in local private server storage
   const primaryStorage = path.join(PLUGINS_STORAGE_DIR, `${plugin.id}.jar`);
+  const bayonStorage = path.join(PLUGINS_STORAGE_DIR, 'bayon-anticheat.jar');
   const anticheatStorage = path.join(PLUGINS_STORAGE_DIR, 'nexora-anticheat.jar');
+  const targetBayonBuild = path.join(__dirname, '..', '..', 'target', 'bayon-anticheat-1.0.0.jar');
   const targetBuild = path.join(__dirname, '..', '..', 'target', 'nexora-anticheat-1.0.0.jar');
+  const publicBayonJar = path.join(publicDir, 'BayonAntiCheat-1.0.0.jar');
   const publicJar = path.join(publicDir, 'NexoraAntiCheat-1.0.0.jar');
 
   let fileToSend = null;
   if (fs.existsSync(primaryStorage)) {
     fileToSend = primaryStorage;
-  } else if (fs.existsSync(anticheatStorage)) {
-    fileToSend = anticheatStorage;
+  } else if (fs.existsSync(bayonStorage)) {
+    fileToSend = bayonStorage;
+  } else if (fs.existsSync(targetBayonBuild)) {
+    fileToSend = targetBayonBuild;
+  } else if (fs.existsSync(publicBayonJar)) {
+    fileToSend = publicBayonJar;
   } else if (fs.existsSync(targetBuild)) {
     fileToSend = targetBuild;
+  } else if (fs.existsSync(anticheatStorage)) {
+    fileToSend = anticheatStorage;
   } else if (fs.existsSync(publicJar)) {
     fileToSend = publicJar;
   }

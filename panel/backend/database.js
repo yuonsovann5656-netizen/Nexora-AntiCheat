@@ -34,20 +34,20 @@ const defaultAdminCreds = hashPassword('admin');
 // Pre-seeded plugins for the marketplace
 const defaultPlugins = [
   {
-    id: 'nexora-anticheat',
-    name: 'Nexora AntiCheat',
+    id: 'bayon-anticheat',
+    name: 'Bayon AntiCheat',
     tagline: 'High-Performance Heuristic & Packet Anti-Cheat Engine',
     description: 'Advanced behavioral anti-cheat solution featuring 26+ heuristic detection algorithms across Movement, Combat, World, and Packet vectors. Optimized for Paper, Purpur, and Folia regionized threading with automated lag and tick compensation.',
     price: 19.99,
     version: '1.0.0',
     category: 'Security',
-    tags: ['AntiCheat', 'Folia', 'Paper', 'Combat', 'Movement', 'Zero-Lag'],
+    tags: ['AntiCheat', 'Bayon', 'Folia', 'Paper', 'Combat', 'Movement', 'Zero-Lag'],
     icon: '🛡️',
     downloads: 1420,
     rating: 5.0,
-    jarFileName: 'NexoraAntiCheat-1.0.0.jar',
-    downloadUrl: '/api/download/nexora-anticheat.jar',
-    githubReleaseUrl: 'https://github.com/yuonsovann5656-netizen/Nexora-AntiCheat/releases/download/v1.0.0/NexoraAntiCheat-1.0.0.jar',
+    jarFileName: 'BayonAntiCheat-1.0.0.jar',
+    downloadUrl: '/api/download/bayon-anticheat.jar',
+    githubReleaseUrl: 'https://github.com/yuonsovann5656-netizen/Nexora-AntiCheat/releases/download/v1.0.0/BayonAntiCheat-1.0.0.jar',
     supportedVersions: '1.20 - 1.21.4',
     software: ['Paper', 'Purpur', 'Folia'],
     screenshots: [
@@ -164,7 +164,7 @@ const defaultPlugins = [
 const defaultReviews = [
   {
     id: 'rev_1',
-    pluginId: 'nexora-anticheat',
+    pluginId: 'bayon-anticheat',
     username: 'HypixelDev_Sokha',
     rating: 5,
     comment: 'The best Folia-ready anti-cheat we have tested. Zero false positives on 1.21.4 movement checks and instantaneous KillAura raytrace detection. The new update runs smooth as butter!',
@@ -175,7 +175,7 @@ const defaultReviews = [
   },
   {
     id: 'rev_2',
-    pluginId: 'nexora-anticheat',
+    pluginId: 'bayon-anticheat',
     username: 'MineCraftNetworkAdmin',
     rating: 5,
     comment: 'Massive TPS improvement compared to Spartan or Grim on our 200 player server. Shaded JAR dropped in and worked right out of the box with zero setup needed.',

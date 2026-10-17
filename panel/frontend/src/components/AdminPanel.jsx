@@ -387,7 +387,7 @@ export default function AdminPanel({
           <img
             src="/logo.png"
             alt="Bayon Logo"
-            style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'contain', boxShadow: '0 0 14px rgba(255, 255, 255, 0.15)' }}
+            style={{ width: '42px', height: '42px', objectFit: 'contain' }}
           />
           <div>
             <div style={{ fontSize: '16px', fontWeight: 800, color: '#fff', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
