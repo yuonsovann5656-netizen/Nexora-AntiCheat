@@ -54,6 +54,18 @@ if (fs.existsSync(frontendDist)) {
 }
 
 // -------------------------------------------------------------
+// HEALTH CHECK & 24/7 MONITORING
+// -------------------------------------------------------------
+app.get(['/api/health', '/health', '/ping'], (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'Nexora E-Commerce & AntiCheat Panel',
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// -------------------------------------------------------------
 // SUPABASE CONNECTION & STATUS
 // -------------------------------------------------------------
 app.get(['/api/supabase/status', '/api/supabase/config'], (req, res) => {
@@ -907,6 +919,44 @@ app.post('/api/admin/plugins', (req, res) => {
 });
 
 /**
+ * Admin delete/remove a plugin product
+ * DELETE /api/admin/plugins/:id
+ */
+app.delete('/api/admin/plugins/:id', (req, res) => {
+  const { id } = req.params;
+  const data = readData();
+  data.plugins = data.plugins || [];
+
+  const initialCount = data.plugins.length;
+  data.plugins = data.plugins.filter(p => p.id !== id);
+
+  if (data.plugins.length === initialCount) {
+    return res.status(404).json({ error: 'Plugin not found.' });
+  }
+
+  // Remove reviews for this plugin
+  if (Array.isArray(data.reviews)) {
+    data.reviews = data.reviews.filter(r => r.pluginId !== id);
+  }
+
+  // Remove local JAR if present on disk
+  const jarPath = path.join(PLUGINS_STORAGE_DIR, `${id}.jar`);
+  if (fs.existsSync(jarPath)) {
+    try {
+      fs.unlinkSync(jarPath);
+    } catch (err) {
+      console.warn(`[Storage] Could not delete jar for ${id}:`, err.message);
+    }
+  }
+
+  writeData(data);
+  res.json({
+    success: true,
+    message: `Plugin "${id}" removed from marketplace catalog.`
+  });
+});
+
+/**
  * Admin uploads .jar file for a plugin directly to server storage (No GitHub)
  * POST /api/admin/plugins/:id/upload
  */
@@ -1032,14 +1082,46 @@ app.use((req, res, next) => {
   }
 });
 
+// -------------------------------------------------------------
+// 24/7 RENDER KEEP-ALIVE SERVICE
+// Self-pings public URL every 8 minutes to prevent Render free instance sleep
+// -------------------------------------------------------------
+function startRenderKeepAlive() {
+  const PING_INTERVAL = 8 * 60 * 1000; // 8 minutes (Render idle limit is 15 mins)
+  const pingUrl = process.env.RENDER_EXTERNAL_URL
+    ? `${process.env.RENDER_EXTERNAL_URL}/api/health`
+    : (process.env.KEEP_ALIVE_URL || 'https://nexora-panel.onrender.com/api/health');
+
+  console.log(`[24/7 Keep-Alive] Service started. Target URL: ${pingUrl}`);
+
+  const ping = () => {
+    try {
+      const client = pingUrl.startsWith('https') ? https : http;
+      client.get(pingUrl, (res) => {
+        console.log(`[24/7 Keep-Alive] Ping OK: ${pingUrl} (HTTP ${res.statusCode})`);
+      }).on('error', (err) => {
+        console.warn(`[24/7 Keep-Alive] Ping notice: ${err.message}`);
+      });
+    } catch (e) {
+      console.warn(`[24/7 Keep-Alive] Ping error: ${e.message}`);
+    }
+  };
+
+  // Initial ping 30s after start, then every 8 minutes
+  setTimeout(ping, 30000);
+  setInterval(ping, PING_INTERVAL);
+}
+
 // Start Express server
 initDatabase().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Nexora] E-Commerce Server listening on port ${PORT}`);
+    startRenderKeepAlive();
   });
 }).catch(err => {
   console.error('[Nexora] Critical database startup failure:', err);
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Nexora] Server running in fallback mode on port ${PORT}`);
+    startRenderKeepAlive();
   });
 });

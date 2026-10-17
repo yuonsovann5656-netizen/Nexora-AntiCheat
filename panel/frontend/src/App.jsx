@@ -3,6 +3,7 @@ import { API_BASE } from './apiConfig';
 import PluginDetailModal from './components/PluginDetailModal';
 import AuthModal from './components/AuthModal';
 import AdminPanel from './components/AdminPanel';
+import AdminLogin from './components/AdminLogin';
 import {
   Shield, Sword, Settings, Package, Plug,
   Star, Download, Tag, Bell, Wallet,
@@ -18,6 +19,10 @@ export default function App() {
     } catch {
       return null;
     }
+  });
+
+  const [currentPath, setCurrentPath] = useState(() => {
+    return (window.location.pathname || '/').toLowerCase();
   });
 
   const [plugins, setPlugins] = useState([]);
@@ -39,7 +44,19 @@ export default function App() {
     if (user) {
       refreshUserSession();
     }
+
+    const handlePopState = () => {
+      setCurrentPath((window.location.pathname || '/').toLowerCase());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  const navigateTo = (path) => {
+    window.history.pushState(null, '', path);
+    setCurrentPath(path.toLowerCase());
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const fetchPlugins = async () => {
     try {
@@ -90,6 +107,45 @@ export default function App() {
     refreshUserSession();
     fetchPlugins();
   };
+
+  // -------------------------------------------------------------
+  // DEDICATED /admin-panel PAGE ROUTE
+  // -------------------------------------------------------------
+  if (currentPath === '/admin-panel' || currentPath === '/admin') {
+    if (user && user.role === 'ADMIN') {
+      return (
+        <AdminPanel
+          isOpen={true}
+          isStandalone={true}
+          user={user}
+          onNavigateHome={() => navigateTo('/')}
+          onLogout={() => {
+            handleLogout();
+            navigateTo('/');
+          }}
+          onRefreshStore={() => {
+            fetchPlugins();
+            fetchNotifications();
+            refreshUserSession();
+          }}
+        />
+      );
+    }
+
+    return (
+      <AdminLogin
+        onLoginSuccess={(freshAdmin) => {
+          setUser(freshAdmin);
+          refreshUserSession();
+        }}
+        onReturnHome={() => navigateTo('/')}
+      />
+    );
+  }
+
+  // -------------------------------------------------------------
+  // PUBLIC STORE CATALOG VIEW (/)
+  // -------------------------------------------------------------
 
   // Filter plugins by search, category, and Library view
   const filteredPlugins = plugins.filter(p => {
@@ -249,8 +305,9 @@ export default function App() {
                 {user.role === 'ADMIN' && (
                   <button
                     className="btn btn-secondary btn-sm"
-                    style={{ borderColor: '#fff', fontWeight: 700 }}
-                    onClick={() => setShowAdminPanel(true)}
+                    style={{ borderColor: '#fff', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => navigateTo('/admin-panel')}
+                    title="Open Standalone Admin Portal"
                   >
                     <Crown size={13} /> Admin Panel
                   </button>
@@ -289,7 +346,7 @@ export default function App() {
               style={{ width: '40px', height: '40px', borderRadius: '10px', boxShadow: '0 0 25px rgba(255, 255, 255, 0.2)' }}
             />
             <span className="badge badge-green" style={{ fontSize: '11px', letterSpacing: '1px' }}>
-              POWERED BY SUPABASE POSTGRESQL
+              POWERED BY SUPABASE POSTGRESQL • 24/7 ONLINE
             </span>
           </div>
 
@@ -424,6 +481,42 @@ export default function App() {
         )}
       </main>
 
+      {/* Footer */}
+      <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '36px 28px', marginTop: '40px', textAlign: 'center', background: 'var(--bg-secondary)' }}>
+        <div style={{ maxWidth: '1300px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <img src="/logo.png" alt="Nexora Logo" style={{ width: '24px', height: '24px', borderRadius: '4px' }} />
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)' }}>
+              NEXORA TECHNOLOGIES
+            </span>
+          </div>
+
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <span>Private Binary Storage</span>
+            <span>•</span>
+            <span>Render 24/7 Active Keep-Alive</span>
+            <span>•</span>
+            <button
+              onClick={() => navigateTo('/admin-panel')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontFamily: 'inherit'
+              }}
+            >
+              <Crown size={12} />
+              <span>Operator Panel</span>
+            </button>
+          </div>
+        </div>
+      </footer>
+
       {/* Modals */}
       <PluginDetailModal
         plugin={selectedPlugin}
@@ -442,17 +535,6 @@ export default function App() {
           setUser(freshUser);
           refreshUserSession();
           fetchPlugins();
-        }}
-      />
-
-      <AdminPanel
-        isOpen={showAdminPanel}
-        onClose={() => setShowAdminPanel(false)}
-        user={user}
-        onRefreshStore={() => {
-          fetchPlugins();
-          fetchNotifications();
-          refreshUserSession();
         }}
       />
 

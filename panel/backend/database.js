@@ -551,6 +551,12 @@ async function syncToPostgres(data) {
     }
 
     // Sync plugins
+    const validPluginIds = (data.plugins || []).map(p => p.id);
+    if (validPluginIds.length > 0) {
+      const placeholders = validPluginIds.map((_, i) => `$${i + 1}`).join(',');
+      await client.query(`DELETE FROM nexora_plugins WHERE id NOT IN (${placeholders})`, validPluginIds);
+    }
+
     for (const p of (data.plugins || [])) {
       await client.query(`
         INSERT INTO nexora_plugins (id, name, tagline, description, price, version, category, tags, icon, downloads, rating, jar_file_name, download_url, github_release_url, supported_versions, software, screenshots, changelogs)
