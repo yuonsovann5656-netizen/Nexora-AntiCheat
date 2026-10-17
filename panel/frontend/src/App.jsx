@@ -11,7 +11,7 @@ import {
   Star, Download, Tag, Bell, Wallet,
   Crown, BookOpen, Store, LogOut, User,
   ChevronRight, Search, CheckCircle, AlertCircle,
-  Share2, ExternalLink
+  Share2, ExternalLink, Menu, X
 } from 'lucide-react';
 
 export default function App() {
@@ -42,6 +42,7 @@ export default function App() {
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [lightboxImg, setLightboxImg] = useState(null);
   const [viewFilter, setViewFilter] = useState('ALL'); // 'ALL' or 'MY_LIBRARY'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetchPlugins();
@@ -419,8 +420,163 @@ export default function App() {
                 <User size={14} /> Sign In
               </button>
             )}
+
+            {/* Mobile Hamburger Toggle Button */}
+            <button
+              type="button"
+              className="mobile-hamburger-btn"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Dropdown Drawer for Phone Layout */}
+        {mobileMenuOpen && (
+          <div className="mobile-nav-drawer">
+            {user ? (
+              <div className="mobile-user-section">
+                <div className="mobile-user-card">
+                  <img
+                    src={`https://mc-heads.net/avatar/${encodeURIComponent(user.username)}/40`}
+                    alt={user.username}
+                    className="mobile-user-avatar"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#fff' }}>{user.username}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                      <span className="badge badge-blue" style={{ fontSize: '10px' }}>{user.role}</span>
+                      {user.emailVerified && <span className="badge badge-green" style={{ fontSize: '10px' }}>VERIFIED</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Balance & Wallet Display */}
+                <div className="mobile-balance-card">
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Wallet Balance
+                    </div>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)' }}>
+                      ${Number(user.balance || 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setShowAccountSettings(true);
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <Wallet size={13} /> Deposit
+                  </button>
+                </div>
+
+                {/* Account Profile and Admin Quick Access */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                  <button
+                    className="btn btn-secondary btn-full"
+                    style={{ justifyContent: 'flex-start', padding: '10px 14px', fontSize: '13px' }}
+                    onClick={() => {
+                      setShowAccountSettings(true);
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <User size={15} /> Account Profile & Settings
+                  </button>
+
+                  <button
+                    className="btn btn-primary btn-full"
+                    style={{ justifyContent: 'flex-start', padding: '10px 14px', fontSize: '13px', background: user.role === 'ADMIN' ? '#fff' : 'var(--bg-card)', color: user.role === 'ADMIN' ? '#000' : '#fff', fontWeight: 700 }}
+                    onClick={() => {
+                      navigateTo('/admin-panel');
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <Crown size={15} /> {user.role === 'ADMIN' ? 'Admin Panel' : 'Admin Portal'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mobile-guest-section">
+                <button
+                  className="btn btn-primary btn-full"
+                  style={{ marginBottom: '8px', padding: '12px', fontSize: '14px', fontWeight: 700 }}
+                  onClick={() => {
+                    setShowAuthModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <User size={15} /> Sign In / Create Account
+                </button>
+                <button
+                  className="btn btn-secondary btn-full"
+                  style={{ padding: '10px', fontSize: '13px' }}
+                  onClick={() => {
+                    navigateTo('/admin-panel');
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <Crown size={15} /> Admin Panel Login
+                </button>
+              </div>
+            )}
+
+            {/* Mobile Navigation Links */}
+            <div className="mobile-nav-links">
+              <div className="mobile-section-label">MARKETPLACE</div>
+              <button
+                className={`mobile-nav-item ${viewFilter === 'ALL' ? 'active' : ''}`}
+                onClick={() => {
+                  setViewFilter('ALL');
+                  setSelectedCategory('ALL');
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <Store size={16} />
+                <span>Store Catalog</span>
+              </button>
+              <button
+                className={`mobile-nav-item ${viewFilter === 'MY_LIBRARY' ? 'active' : ''}`}
+                onClick={() => {
+                  if (!user) setShowAuthModal(true);
+                  else setViewFilter('MY_LIBRARY');
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <BookOpen size={16} />
+                <span>My Library {user && user.purchasedPlugins ? `(${user.purchasedPlugins.length})` : ''}</span>
+              </button>
+              <button
+                className="mobile-nav-item"
+                onClick={() => {
+                  if (plugins.length > 0) setSelectedPlugin(plugins[0]);
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <Tag size={16} />
+                <span>Changelogs & Updates</span>
+              </button>
+            </div>
+
+            {user && (
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+                <button
+                  className="btn btn-danger btn-full"
+                  onClick={() => {
+                    handleLogout();
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <LogOut size={14} /> Sign Out ({user.username})
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
       {/* Hero Showcase Section */}
@@ -505,6 +661,8 @@ export default function App() {
             {filteredPlugins.map(plugin => {
               const isOwned = user && Array.isArray(user.purchasedPlugins) && user.purchasedPlugins.includes(plugin.id);
               const isFree = Number(plugin.price) === 0;
+              const pluginLogo = plugin.logoUrl || (plugin.id === 'bayon-anticheat' ? '/logo.png' : null);
+              const bannerImg = plugin.bannerUrl || (Array.isArray(plugin.screenshots) && plugin.screenshots.length > 0 ? plugin.screenshots[0] : null);
 
               return (
                 <div
@@ -512,79 +670,105 @@ export default function App() {
                   className="plugin-card"
                   onClick={() => setSelectedPlugin(plugin)}
                 >
-                  <div className="plugin-card-header">
-                    <span className="plugin-icon">{getPluginIcon(plugin)}</span>
-                    <span className="badge badge-blue">{plugin.category}</span>
-                  </div>
-
-                  <h3 className="plugin-title">{plugin.name}</h3>
-                  <p className="plugin-tagline">{plugin.tagline}</p>
-
-                  <div className="plugin-tags">
-                    {(plugin.tags || []).slice(0, 3).map((tag, idx) => (
-                      <span key={idx} className="plugin-tag">#{tag}</span>
-                    ))}
-                  </div>
-
-                  <div className="plugin-stats-row">
-                    <span className="plugin-stat">
-                      <Star size={12} fill="currentColor" style={{ color: '#facc15' }} />
-                      <strong>{plugin.rating || '5.0'}</strong>
-                    </span>
-                    <span className="plugin-stat">
-                      <Download size={12} />
-                      <strong>{plugin.downloads || 0}</strong> dl
-                    </span>
-                    <span className="plugin-stat mono">
-                      v{plugin.version}
-                    </span>
-                  </div>
-
-                  <div className="plugin-card-footer">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="plugin-price-tag">
-                        {isFree ? 'FREE' : `$${Number(plugin.price).toFixed(2)}`}
-                      </span>
-                      {isOwned && (
-                        <span className="badge badge-green" style={{ fontSize: '10px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                          <CheckCircle size={10} /> OWNED
-                        </span>
-                      )}
+                  {/* Banner / Detail Image Preview Header */}
+                  {bannerImg && (
+                    <div className="plugin-card-banner">
+                      <img src={bannerImg} alt={plugin.name} className="plugin-card-banner-img" />
+                      <span className="plugin-card-banner-badge badge badge-blue">{plugin.category}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '7px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                        title="Share plugin link"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSharePlugin(plugin);
-                        }}
-                      >
-                        <Share2 size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '7px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                        title="Open Dedicated Full Page"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigateTo(`/detail-plugin?plugin=${encodeURIComponent(plugin.id)}`);
-                        }}
-                      >
-                        <ExternalLink size={13} />
-                      </button>
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedPlugin(plugin);
-                        }}
-                      >
-                        {isOwned || isFree ? 'Download' : 'View & Get'}
-                      </button>
+                  )}
+
+                  <div className="plugin-card-body">
+                    <div className="plugin-card-header">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                        <div className="plugin-card-logo-box">
+                          {pluginLogo ? (
+                            <img src={pluginLogo} alt={plugin.name} className="plugin-card-logo-img" />
+                          ) : (
+                            <span className="plugin-icon">{getPluginIcon(plugin)}</span>
+                          )}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <h3 className="plugin-title">{plugin.name}</h3>
+                          <p className="plugin-tagline">{plugin.tagline}</p>
+                        </div>
+                      </div>
+                      {!bannerImg && <span className="badge badge-blue">{plugin.category}</span>}
+                    </div>
+
+                    {/* Rich description preview */}
+                    {plugin.description && (
+                      <p className="plugin-card-desc">
+                        {plugin.description}
+                      </p>
+                    )}
+
+                    <div className="plugin-tags">
+                      {(plugin.tags || []).slice(0, 3).map((tag, idx) => (
+                        <span key={idx} className="plugin-tag">#{tag}</span>
+                      ))}
+                    </div>
+
+                    <div className="plugin-stats-row">
+                      <span className="plugin-stat">
+                        <Star size={12} fill="currentColor" style={{ color: '#facc15' }} />
+                        <strong>{plugin.rating || '5.0'}</strong>
+                      </span>
+                      <span className="plugin-stat">
+                        <Download size={12} />
+                        <strong>{plugin.downloads || 0}</strong> dl
+                      </span>
+                      <span className="plugin-stat mono">
+                        v{plugin.version}
+                      </span>
+                    </div>
+
+                    <div className="plugin-card-footer">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="plugin-price-tag">
+                          {isFree ? 'FREE' : `$${Number(plugin.price).toFixed(2)}`}
+                        </span>
+                        {isOwned && (
+                          <span className="badge badge-green" style={{ fontSize: '10px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <CheckCircle size={10} /> OWNED
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '7px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                          title="Share plugin link"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSharePlugin(plugin);
+                          }}
+                        >
+                          <Share2 size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '7px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                          title="Open Dedicated Full Page"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigateTo(`/detail-plugin?plugin=${encodeURIComponent(plugin.id)}`);
+                          }}
+                        >
+                          <ExternalLink size={13} />
+                        </button>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPlugin(plugin);
+                          }}
+                        >
+                          {isOwned || isFree ? 'Download' : 'View & Get'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

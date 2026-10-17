@@ -264,9 +264,17 @@ export default function PluginDetailPage({
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '36px',
-              boxShadow: '0 0 30px rgba(0, 229, 153, 0.1)'
+              overflow: 'hidden'
             }}>
-              {getCategoryIcon(plugin.category)}
+              {plugin.logoUrl || plugin.id === 'bayon-anticheat' ? (
+                <img
+                  src={plugin.logoUrl || '/logo.png'}
+                  alt={plugin.name}
+                  style={{ width: '64px', height: '64px', objectFit: 'contain' }}
+                />
+              ) : (
+                getCategoryIcon(plugin.category)
+              )}
             </div>
 
             <div>

@@ -511,12 +511,13 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  padding: 24px;
   display: flex;
   flex-direction: column;
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
+  padding: 0;
+  cursor: pointer;
 }
 
 .plugin-card:hover {
@@ -526,12 +527,76 @@ body {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
 }
 
+.plugin-card-banner {
+  position: relative;
+  width: 100%;
+  height: 140px;
+  overflow: hidden;
+  background: #06070a;
+}
+
+.plugin-card-banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.plugin-card:hover .plugin-card-banner-img {
+  transform: scale(1.05);
+}
+
+.plugin-card-banner-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+
+.plugin-card-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.plugin-card-logo-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.plugin-card-logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.plugin-card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Card inner elements */
 .plugin-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .plugin-title {
@@ -1104,15 +1169,180 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-@media (max-width: 768px) {
-  .hero-title {
-    font-size: 32px;
+/* Mobile Hamburger Button & Drawer */
+.mobile-hamburger-btn {
+  display: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: #fff;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mobile-hamburger-btn:hover {
+  border-color: #fff;
+}
+
+.mobile-nav-drawer {
+  display: none;
+  background: rgba(10, 12, 18, 0.98);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-bright);
+  border-bottom: 1px solid var(--border-bright);
+  padding: 20px 24px;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9);
+  z-index: 100;
+  animation: slideDown 0.2s ease-out forwards;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-user-section {
+  margin-bottom: 16px;
+}
+
+.mobile-user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.mobile-user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mobile-balance-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid var(--border-bright);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+
+.mobile-guest-section {
+  margin-bottom: 16px;
+}
+
+.mobile-section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin: 14px 0 8px;
+}
+
+.mobile-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobile-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mobile-nav-item:hover,
+.mobile-nav-item.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+/* Comprehensive Responsive Media Queries */
+@media (max-width: 768px) {
   .nav-links {
-    display: none;
+    display: none !important;
+  }
+  .nav-actions .wallet-pill {
+    display: none !important;
+  }
+  .mobile-hamburger-btn {
+    display: flex !important;
+  }
+  .mobile-nav-drawer {
+    display: block !important;
   }
   .plugin-grid {
     grid-template-columns: 1fr;
+    padding: 0 16px 60px;
+    gap: 16px;
+  }
+  .hero-title {
+    font-size: 28px;
+    letter-spacing: -0.5px;
+  }
+  .hero-subtitle {
+    font-size: 13px;
+  }
+  .hero-section {
+    padding: 40px 16px;
+  }
+  .filter-bar {
+    padding: 0 16px;
+  }
+  .category-filter-bar {
+    padding: 0 16px;
+  }
+  .search-input {
+    min-width: 100%;
+  }
+  .modal-card {
+    width: 95vw !important;
+    max-height: 90vh !important;
+    padding: 20px 16px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 24px;
+  }
+  .plugin-card-banner {
+    height: 120px;
+  }
+  .nav-actions button:not(.mobile-hamburger-btn) {
+    display: none;
   }
 }
 

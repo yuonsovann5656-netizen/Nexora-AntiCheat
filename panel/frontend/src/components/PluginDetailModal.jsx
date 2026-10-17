@@ -207,9 +207,18 @@ export default function PluginDetailModal({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#fff'
+              color: '#fff',
+              overflow: 'hidden'
             }}>
-              {getCategoryIcon(plugin.category)}
+              {plugin.logoUrl || plugin.id === 'bayon-anticheat' ? (
+                <img
+                  src={plugin.logoUrl || '/logo.png'}
+                  alt={plugin.name}
+                  style={{ width: '36px', height: '36px', objectFit: 'contain' }}
+                />
+              ) : (
+                getCategoryIcon(plugin.category)
+              )}
             </div>
             <div>
               <div className="modal-title" style={{ fontSize: '18px' }}>{plugin.name}</div>

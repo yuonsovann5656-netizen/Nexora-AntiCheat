@@ -4,6 +4,12 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
+const dns = require('dns');
+
+// Force IPv4 first to prevent ENETUNREACH when connecting to Supabase or external APIs
+if (dns && typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 const {
   initDatabase,
   readData,
@@ -995,7 +1001,7 @@ app.delete('/api/admin/reviews/:id', (req, res) => {
  * POST /api/admin/plugins
  */
 app.post('/api/admin/plugins', (req, res) => {
-  const { id, name, tagline, description, price, version, category, tags, icon } = req.body;
+  const { id, name, tagline, description, price, version, category, tags, icon, logoUrl, bannerUrl, screenshots } = req.body;
 
   if (!id || !name) {
     return res.status(400).json({ error: 'Plugin ID and Name are required.' });
@@ -1003,6 +1009,16 @@ app.post('/api/admin/plugins', (req, res) => {
 
   const data = readData();
   data.plugins = data.plugins || [];
+
+  const parsedScreenshots = Array.isArray(screenshots)
+    ? screenshots
+    : typeof screenshots === 'string' && screenshots.trim()
+      ? screenshots.split('\n').map(s => s.trim()).filter(Boolean)
+      : [];
+
+  if (bannerUrl && !parsedScreenshots.includes(bannerUrl)) {
+    parsedScreenshots.unshift(bannerUrl);
+  }
 
   let plugin = data.plugins.find(p => p.id === id);
   if (!plugin) {
@@ -1016,6 +1032,8 @@ app.post('/api/admin/plugins', (req, res) => {
       category: category || 'General',
       tags: Array.isArray(tags) ? tags : ['Plugin'],
       icon: icon || '📦',
+      logoUrl: logoUrl || (id === 'bayon-anticheat' ? '/logo.png' : ''),
+      bannerUrl: bannerUrl || (parsedScreenshots[0] || ''),
       downloads: 0,
       rating: 5.0,
       jarFileName: `${name.replace(/\s+/g, '')}-${version || '1.0.0'}.jar`,
@@ -1023,13 +1041,13 @@ app.post('/api/admin/plugins', (req, res) => {
       githubReleaseUrl: '',
       supportedVersions: '1.20 - 1.21.4',
       software: ['Paper', 'Purpur', 'Folia'],
-      screenshots: [],
+      screenshots: parsedScreenshots,
       changelogs: [
         {
           version: version || '1.0.0',
           date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
           title: 'Initial Release',
-          notes: ['Initial publication to Nexora Marketplace.']
+          notes: ['Initial publication to Bayon Technologies Marketplace.']
         }
       ]
     };
@@ -1041,6 +1059,9 @@ app.post('/api/admin/plugins', (req, res) => {
     plugin.price = price !== undefined ? Number(price) : plugin.price;
     plugin.version = version || plugin.version;
     plugin.category = category || plugin.category;
+    if (logoUrl !== undefined) plugin.logoUrl = logoUrl;
+    if (bannerUrl !== undefined) plugin.bannerUrl = bannerUrl;
+    if (parsedScreenshots.length > 0) plugin.screenshots = parsedScreenshots;
     if (tags) plugin.tags = Array.isArray(tags) ? tags : plugin.tags;
     if (icon) plugin.icon = icon;
   }

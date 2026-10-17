@@ -6,7 +6,7 @@ import {
   CheckCircle, AlertCircle, RefreshCw, Upload,
   Plus, Check, ArrowRight, Shield, Zap,
   ExternalLink, Search, UserCheck, DollarSign,
-  Store, LogOut, ThumbsUp
+  Store, LogOut, ThumbsUp, Edit
 } from 'lucide-react';
 
 export default function AdminPanel({
@@ -38,6 +38,8 @@ export default function AdminPanel({
   const [newPluginDesc, setNewPluginDesc] = useState('');
   const [newPluginVersion, setNewPluginVersion] = useState('1.0.0');
   const [newPluginCategory, setNewPluginCategory] = useState('Security');
+  const [newPluginLogo, setNewPluginLogo] = useState('');
+  const [newPluginBanner, setNewPluginBanner] = useState('');
 
   // Changelog form state
   const [selectedPluginId, setSelectedPluginId] = useState('');
@@ -139,22 +141,39 @@ export default function AdminPanel({
           tagline: newPluginTagline,
           description: newPluginDesc,
           version: newPluginVersion,
-          category: newPluginCategory
+          category: newPluginCategory,
+          logoUrl: newPluginLogo,
+          bannerUrl: newPluginBanner
         })
       });
       const data = await res.json();
       if (data.success) {
-        setAlertMsg({ type: 'success', text: `Plugin "${newPluginName}" created successfully!` });
+        setAlertMsg({ type: 'success', text: `Plugin "${newPluginName}" saved successfully!` });
         setNewPluginId('');
         setNewPluginName('');
         setNewPluginTagline('');
         setNewPluginDesc('');
+        setNewPluginLogo('');
+        setNewPluginBanner('');
         fetchAdminData();
         if (onRefreshStore) onRefreshStore();
       }
     } catch {
-      setAlertMsg({ type: 'error', text: 'Failed to create plugin.' });
+      setAlertMsg({ type: 'error', text: 'Failed to save plugin.' });
     }
+  };
+
+  const handleEditPlugin = (p) => {
+    setNewPluginId(p.id);
+    setNewPluginName(p.name);
+    setNewPluginPrice(p.price || 0);
+    setNewPluginTagline(p.tagline || '');
+    setNewPluginDesc(p.description || '');
+    setNewPluginVersion(p.version || '1.0.0');
+    setNewPluginCategory(p.category || 'Security');
+    setNewPluginLogo(p.logoUrl || (p.id === 'bayon-anticheat' ? '/logo.png' : ''));
+    setNewPluginBanner(p.bannerUrl || (Array.isArray(p.screenshots) && p.screenshots.length > 0 ? p.screenshots[0] : ''));
+    setAlertMsg({ type: 'success', text: `Loaded "${p.name}" into editor below. Update details and click Save.` });
   };
 
   const handleDeletePlugin = async (pluginId, pluginName) => {
@@ -786,6 +805,15 @@ export default function AdminPanel({
                         <td>
                           <div style={{ display: 'flex', gap: '6px' }}>
                             <button
+                              onClick={() => handleEditPlugin(p)}
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '11px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title={`Edit details, logo and images for ${p.name}`}
+                            >
+                              <Edit size={12} />
+                              <span>Edit</span>
+                            </button>
+                            <button
                               onClick={() => { setUploadPluginId(p.id); setSelectedPluginId(p.id); }}
                               className="btn btn-secondary btn-sm"
                               style={{ fontSize: '11px', padding: '4px 8px' }}
@@ -800,7 +828,7 @@ export default function AdminPanel({
                               title={`Permanently remove product ${p.name}`}
                             >
                               <Trash2 size={12} />
-                              <span>Remove Product</span>
+                              <span>Remove</span>
                             </button>
                           </div>
                         </td>
@@ -917,6 +945,27 @@ export default function AdminPanel({
                   </div>
                 </div>
 
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <div>
+                    <label className="form-label">Plugin Logo URL</label>
+                    <input
+                      className="input-field"
+                      placeholder="e.g. /logo.png or https://.../icon.png"
+                      value={newPluginLogo}
+                      onChange={e => setNewPluginLogo(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Detail / Banner Preview Image URL</label>
+                    <input
+                      className="input-field"
+                      placeholder="e.g. https://images.unsplash.com/... (shown on card & detail)"
+                      value={newPluginBanner}
+                      onChange={e => setNewPluginBanner(e.target.value)}
+                    />
+                  </div>
+                </div>
+
                 <div style={{ marginBottom: '12px' }}>
                   <label className="form-label">Short Tagline</label>
                   <input
@@ -928,19 +977,37 @@ export default function AdminPanel({
                 </div>
 
                 <div style={{ marginBottom: '16px' }}>
-                  <label className="form-label">Full Description</label>
+                  <label className="form-label">Full Product Description</label>
                   <textarea
                     className="input-field"
-                    style={{ minHeight: '80px' }}
-                    placeholder="Detailed features, Folia support, permissions, commands..."
+                    style={{ minHeight: '90px' }}
+                    placeholder="Detailed features, Folia support, permissions, commands, heuristic checks..."
                     value={newPluginDesc}
                     onChange={e => setNewPluginDesc(e.target.value)}
                   />
                 </div>
 
-                <button type="submit" className="btn btn-primary btn-sm">
-                  Create Plugin Entry
-                </button>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <button type="submit" className="btn btn-primary btn-sm">
+                    {plugins.some(p => p.id === newPluginId) ? 'Save & Update Plugin Details' : 'Create Plugin Entry'}
+                  </button>
+                  {newPluginId && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setNewPluginId('');
+                        setNewPluginName('');
+                        setNewPluginTagline('');
+                        setNewPluginDesc('');
+                        setNewPluginLogo('');
+                        setNewPluginBanner('');
+                      }}
+                    >
+                      Clear Form
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
 

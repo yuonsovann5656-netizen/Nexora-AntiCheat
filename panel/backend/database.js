@@ -1,7 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const dns = require('dns');
 const { Pool } = require('pg');
+
+// Force IPv4 address resolution first to prevent ENETUNREACH on IPv6-only Supabase endpoints
+if (dns && typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'nexora_store.json');
@@ -43,6 +49,8 @@ const defaultPlugins = [
     category: 'Security',
     tags: ['AntiCheat', 'Bayon', 'Folia', 'Paper', 'Combat', 'Movement', 'Zero-Lag'],
     icon: '🛡️',
+    logoUrl: '/logo.png',
+    bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
     downloads: 1420,
     rating: 5.0,
     jarFileName: 'BayonAntiCheat-1.0.0.jar',
@@ -78,6 +86,8 @@ const defaultPlugins = [
     category: 'Administration',
     tags: ['Staff', 'Moderation', 'Freeze', 'Vanish', 'Admin'],
     icon: '⚡',
+    logoUrl: '',
+    bannerUrl: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80',
     downloads: 870,
     rating: 4.9,
     jarFileName: 'NexoraStaffSuite-2.4.0.jar',
@@ -110,6 +120,8 @@ const defaultPlugins = [
     category: 'Combat',
     tags: ['PvP', 'Combat', 'AntiQuit', 'NPC'],
     icon: '⚔️',
+    logoUrl: '',
+    bannerUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80',
     downloads: 650,
     rating: 4.8,
     jarFileName: 'NexoraCombatLog-1.3.0.jar',
@@ -142,6 +154,8 @@ const defaultPlugins = [
     category: 'Bundle',
     tags: ['Bundle', 'Security', 'AntiCheat', 'BestValue'],
     icon: '👑',
+    logoUrl: '/logo.png',
+    bannerUrl: 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=800&q=80',
     downloads: 410,
     rating: 5.0,
     jarFileName: 'NexoraUltimateBundle-1.0.0.zip',
@@ -315,8 +329,12 @@ async function initDatabase() {
             supported_versions VARCHAR(128),
             software TEXT DEFAULT '["Paper"]',
             screenshots TEXT DEFAULT '[]',
-            changelogs TEXT DEFAULT '[]'
+            changelogs TEXT DEFAULT '[]',
+            logo_url TEXT,
+            banner_url TEXT
           );
+          ALTER TABLE nexora_plugins ADD COLUMN IF NOT EXISTS logo_url TEXT;
+          ALTER TABLE nexora_plugins ADD COLUMN IF NOT EXISTS banner_url TEXT;
 
           -- 4. Reviews & Community Feedback Table
           CREATE TABLE IF NOT EXISTS nexora_reviews (
@@ -447,7 +465,9 @@ async function loadFromPostgres() {
         supportedVersions: r.supported_versions,
         software: JSON.parse(r.software || '["Paper"]'),
         screenshots: JSON.parse(r.screenshots || '[]'),
-        changelogs: JSON.parse(r.changelogs || '[]')
+        changelogs: JSON.parse(r.changelogs || '[]'),
+        logoUrl: r.logo_url || (r.id === 'bayon-anticheat' ? '/logo.png' : ''),
+        bannerUrl: r.banner_url || (r.screenshots ? (JSON.parse(r.screenshots || '[]')[0] || '') : '')
       }));
     } else {
       store.plugins = defaultPlugins;
@@ -546,6 +566,9 @@ function readData() {
   return memoryStore;
 }
 
+let lastPostgresSyncErrorTime = 0;
+let isPostgresSyncHealthy = true;
+
 function writeData(data) {
   memoryStore = data;
 
@@ -556,15 +579,38 @@ function writeData(data) {
 
   // 2. Synchronize to Supabase if connected
   if (pgPool) {
-    syncToPostgres(data).catch(err => {
-      console.error('[Database] Error syncing data to Supabase:', err.message);
-    });
+    syncToPostgres(data).catch(() => {});
   }
 }
 
 async function syncToPostgres(data) {
   if (!pgPool) return;
-  const client = await pgPool.connect();
+
+  // If recently encountered ENETUNREACH, backoff for 30 seconds
+  if (!isPostgresSyncHealthy && Date.now() - lastPostgresSyncErrorTime < 30000) {
+    return;
+  }
+
+  let client;
+  try {
+    client = await pgPool.connect();
+    isPostgresSyncHealthy = true;
+  } catch (connErr) {
+    isPostgresSyncHealthy = false;
+    const now = Date.now();
+    if (now - lastPostgresSyncErrorTime > 30000) {
+      lastPostgresSyncErrorTime = now;
+      if (connErr.message && connErr.message.includes('ENETUNREACH')) {
+        console.warn('[Database] Supabase is unreachable via IPv6 (ENETUNREACH).');
+        console.warn('[Database] -> Please switch your DATABASE_URL in Render to your Supabase Connection Pooler: aws-0-[region].pooler.supabase.com:6543 (port 6543 or 5432).');
+        console.warn('[Database] -> Local database is active and authoritative; data is safe in data/nexora_store.json.');
+      } else {
+        console.warn('[Database] Supabase sync deferred:', connErr.message);
+      }
+    }
+    return;
+  }
+
   try {
     // Sync users
     for (const u of (data.users || [])) {
@@ -591,9 +637,12 @@ async function syncToPostgres(data) {
     }
 
     for (const p of (data.plugins || [])) {
+      const pLogo = p.logoUrl || (p.id === 'bayon-anticheat' ? '/logo.png' : '');
+      const pBanner = p.bannerUrl || (Array.isArray(p.screenshots) && p.screenshots.length > 0 ? p.screenshots[0] : '');
+
       await client.query(`
-        INSERT INTO nexora_plugins (id, name, tagline, description, price, version, category, tags, icon, downloads, rating, jar_file_name, download_url, github_release_url, supported_versions, software, screenshots, changelogs)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        INSERT INTO nexora_plugins (id, name, tagline, description, price, version, category, tags, icon, downloads, rating, jar_file_name, download_url, github_release_url, supported_versions, software, screenshots, changelogs, logo_url, banner_url)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
           tagline = EXCLUDED.tagline,
@@ -611,8 +660,10 @@ async function syncToPostgres(data) {
           supported_versions = EXCLUDED.supported_versions,
           software = EXCLUDED.software,
           screenshots = EXCLUDED.screenshots,
-          changelogs = EXCLUDED.changelogs;
-      `, [p.id, p.name, p.tagline, p.description, p.price, p.version, p.category, JSON.stringify(p.tags || []), p.icon, p.downloads, p.rating, p.jarFileName, p.downloadUrl, p.githubReleaseUrl, p.supportedVersions, JSON.stringify(p.software || []), JSON.stringify(p.screenshots || []), JSON.stringify(p.changelogs || [])]);
+          changelogs = EXCLUDED.changelogs,
+          logo_url = EXCLUDED.logo_url,
+          banner_url = EXCLUDED.banner_url;
+      `, [p.id, p.name, p.tagline, p.description, p.price, p.version, p.category, JSON.stringify(p.tags || []), p.icon, p.downloads, p.rating, p.jarFileName, p.downloadUrl, p.githubReleaseUrl, p.supportedVersions, JSON.stringify(p.software || []), JSON.stringify(p.screenshots || []), JSON.stringify(p.changelogs || []), pLogo, pBanner]);
     }
 
     // Sync reviews
