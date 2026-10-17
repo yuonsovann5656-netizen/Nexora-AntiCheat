@@ -3,7 +3,7 @@ import { API_BASE } from '../apiConfig';
 import {
   X, Star, Download, Camera, Check,
   AlertTriangle, Shield, Sword, Settings,
-  Package, Plug
+  Package, Plug, Share2, ThumbsUp
 } from 'lucide-react';
 
 const CATEGORY_ICONS = {
@@ -26,7 +26,8 @@ export default function PluginDetailModal({
   user,
   onOpenAuth,
   onPurchaseSuccess,
-  onOpenLightbox
+  onOpenLightbox,
+  onSharePlugin
 }) {
   if (!isOpen || !plugin) return null;
 
@@ -113,6 +114,31 @@ export default function PluginDetailModal({
     }
   };
 
+  const handleLikeReview = async (reviewId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/plugins/${plugin.id}/reviews/${reviewId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user ? user.username : '' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setReviews(prev => prev.map(rev => {
+          if (rev.id === reviewId) {
+            return {
+              ...rev,
+              likes: data.likes,
+              likedBy: data.likedBy
+            };
+          }
+          return rev;
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to like review:', err);
+    }
+  };
+
   const handleBuy = async () => {
     if (!user) {
       onOpenAuth();
@@ -191,13 +217,27 @@ export default function PluginDetailModal({
               </div>
             </div>
           </div>
-          <button
-            className="modal-close"
-            onClick={onClose}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <X size={18} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onSharePlugin && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                onClick={() => onSharePlugin(plugin)}
+                title="Share this plugin"
+              >
+                <Share2 size={13} />
+                <span>Share</span>
+              </button>
+            )}
+            <button
+              className="modal-close"
+              onClick={onClose}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Tab Selector */}
@@ -449,6 +489,49 @@ export default function PluginDetailModal({
                           onClick={() => onOpenLightbox(r.imageUrl)}
                         />
                       )}
+
+                      {/* Review likes and verified badge */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginTop: '12px',
+                        paddingTop: '8px',
+                        borderTop: '1px solid var(--border-subtle)'
+                      }}>
+                        {(() => {
+                          const userKey = user ? user.username.toLowerCase() : '';
+                          const isLikedByUser = Boolean(userKey && Array.isArray(r.likedBy) && r.likedBy.some(u => u.toLowerCase() === userKey));
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleLikeReview(r.id)}
+                              style={{
+                                background: isLikedByUser ? 'rgba(0, 229, 153, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                border: `1px solid ${isLikedByUser ? 'rgba(0, 229, 153, 0.4)' : 'var(--border-subtle)'}`,
+                                color: isLikedByUser ? '#00e599' : 'var(--text-secondary)',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '11px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 600,
+                                transition: 'all 0.15s ease'
+                              }}
+                              title={isLikedByUser ? 'Unlike this review' : 'Helpful review? Thumbs up!'}
+                            >
+                              <ThumbsUp size={12} fill={isLikedByUser ? 'currentColor' : 'none'} />
+                              <span>{r.likes || 0} {r.likes === 1 ? 'Like' : 'Likes'}</span>
+                            </button>
+                          );
+                        })()}
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          Verified Customer
+                        </span>
+                      </div>
                     </div>
                   ))
                 ) : (

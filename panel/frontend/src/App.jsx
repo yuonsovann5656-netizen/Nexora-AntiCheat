@@ -9,6 +9,7 @@ import {
   Star, Download, Tag, Bell, Wallet,
   Crown, BookOpen, Store, LogOut, User,
   ChevronRight, Search, CheckCircle, AlertCircle,
+  Share2
 } from 'lucide-react';
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
   const [selectedPlugin, setSelectedPlugin] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [toastMsg, setToastMsg] = useState(null);
 
   // Modals & Popups
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -51,6 +53,42 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Deep linking: Auto-open modal if URL has ?plugin=plugin-id
+  useEffect(() => {
+    if (plugins.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetId = urlParams.get('plugin');
+      if (targetId) {
+        const found = plugins.find(p => p.id === targetId);
+        if (found) {
+          setSelectedPlugin(found);
+        }
+      }
+    }
+  }, [plugins]);
+
+  const handleSharePlugin = (plugin) => {
+    if (!plugin) return;
+    const shareUrl = `${window.location.origin}/?plugin=${encodeURIComponent(plugin.id)}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: `${plugin.name} - Nexora AntiCheat`,
+        text: `${plugin.name}: ${plugin.tagline}`,
+        url: shareUrl,
+      }).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setToastMsg(`Copied share link for ${plugin.name}!`);
+        setTimeout(() => setToastMsg(null), 3500);
+      }).catch(() => {
+        prompt('Copy plugin link:', shareUrl);
+      });
+    } else {
+      prompt('Copy plugin link:', shareUrl);
+    }
+  };
 
   const navigateTo = (path) => {
     window.history.pushState(null, '', path);
@@ -464,15 +502,29 @@ export default function App() {
                         </span>
                       )}
                     </div>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPlugin(plugin);
-                      }}
-                    >
-                      {isOwned || isFree ? 'Download' : 'View & Get'}
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '7px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                        title="Share plugin link"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSharePlugin(plugin);
+                        }}
+                      >
+                        <Share2 size={13} />
+                      </button>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPlugin(plugin);
+                        }}
+                      >
+                        {isOwned || isFree ? 'Download' : 'View & Get'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -526,6 +578,7 @@ export default function App() {
         onOpenAuth={() => setShowAuthModal(true)}
         onPurchaseSuccess={handlePurchaseSuccess}
         onOpenLightbox={imgUrl => setLightboxImg(imgUrl)}
+        onSharePlugin={handleSharePlugin}
       />
 
       <AuthModal
@@ -542,6 +595,29 @@ export default function App() {
       {lightboxImg && (
         <div className="lightbox-overlay" onClick={() => setLightboxImg(null)}>
           <img src={lightboxImg} alt="Enlarged preview" className="lightbox-img" onClick={e => e.stopPropagation()} />
+        </div>
+      )}
+
+      {/* Floating Share / Alert Toast */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          background: '#00e599',
+          color: '#050505',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          fontWeight: 700,
+          fontSize: '13px',
+          boxShadow: '0 8px 30px rgba(0, 229, 153, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          zIndex: 9999
+        }}>
+          <CheckCircle size={16} />
+          <span>{toastMsg}</span>
         </div>
       )}
     </div>

@@ -533,6 +533,8 @@ app.post('/api/plugins/:id/reviews', (req, res) => {
     rating: Math.min(5, Math.max(1, Number(rating) || 5)),
     comment: comment.trim(),
     imageUrl: (imageUrl || '').trim(),
+    likes: 0,
+    likedBy: [],
     createdAt: Date.now()
   };
 
@@ -548,6 +550,51 @@ app.post('/api/plugins/:id/reviews', (req, res) => {
 
   writeData(data);
   res.json({ success: true, review: newReview, averageRating: plugin ? plugin.rating : 5.0 });
+});
+
+/**
+ * Like or unlike a community review (Thumbs Up)
+ * POST /api/plugins/:id/reviews/:reviewId/like
+ * POST /api/reviews/:reviewId/like
+ * Body: { username }
+ */
+app.post(['/api/plugins/:id/reviews/:reviewId/like', '/api/reviews/:reviewId/like'], (req, res) => {
+  const { reviewId } = req.params;
+  const username = (req.body.username || '').trim();
+  const clientIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1').replace('::ffff:', '');
+  const userKey = username ? username.toLowerCase() : `ip_${clientIp}`;
+
+  const data = readData();
+  const review = (data.reviews || []).find(r => r.id === reviewId);
+  if (!review) {
+    return res.status(404).json({ error: 'Review not found.' });
+  }
+
+  review.likedBy = review.likedBy || [];
+  review.likes = typeof review.likes === 'number' ? review.likes : 0;
+
+  const existingIdx = review.likedBy.findIndex(u => u.toLowerCase() === userKey);
+  let isLiked = false;
+
+  if (existingIdx >= 0) {
+    review.likedBy.splice(existingIdx, 1);
+    review.likes = Math.max(0, review.likes - 1);
+    isLiked = false;
+  } else {
+    review.likedBy.push(userKey);
+    review.likes = review.likes + 1;
+    isLiked = true;
+  }
+
+  writeData(data);
+
+  return res.json({
+    success: true,
+    likes: review.likes,
+    isLiked,
+    likedBy: review.likedBy,
+    message: isLiked ? 'Review liked!' : 'Like removed.'
+  });
 });
 
 // -------------------------------------------------------------

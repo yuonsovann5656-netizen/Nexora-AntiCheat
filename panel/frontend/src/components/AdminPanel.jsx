@@ -6,7 +6,7 @@ import {
   CheckCircle, AlertCircle, RefreshCw, Upload,
   Plus, Check, ArrowRight, Shield, Zap,
   ExternalLink, Search, UserCheck, DollarSign,
-  Store, LogOut
+  Store, LogOut, ThumbsUp
 } from 'lucide-react';
 
 export default function AdminPanel({
@@ -1121,7 +1121,12 @@ export default function AdminPanel({
                       alignItems: 'center',
                       justifyContent: 'space-between'
                     }}>
-                      <span>{new Date(r.createdAt || Date.now()).toLocaleDateString()}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span>{new Date(r.createdAt || Date.now()).toLocaleDateString()}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#00e599' }}>
+                          <ThumbsUp size={11} /> {r.likes || 0}
+                        </span>
+                      </div>
                       <span style={{ color: '#00e599' }}>Verified Customer</span>
                     </div>
                   </div>

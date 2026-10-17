@@ -169,6 +169,8 @@ const defaultReviews = [
     rating: 5,
     comment: 'The best Folia-ready anti-cheat we have tested. Zero false positives on 1.21.4 movement checks and instantaneous KillAura raytrace detection. The new update runs smooth as butter!',
     imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
+    likes: 14,
+    likedBy: ['admin', 'MineCraftNetworkAdmin'],
     createdAt: Date.now() - 86400000 * 3
   },
   {
@@ -178,6 +180,8 @@ const defaultReviews = [
     rating: 5,
     comment: 'Massive TPS improvement compared to Spartan or Grim on our 200 player server. Shaded JAR dropped in and worked right out of the box with zero setup needed.',
     imageUrl: '',
+    likes: 9,
+    likedBy: ['HypixelDev_Sokha'],
     createdAt: Date.now() - 86400000 * 1
   },
   {
@@ -187,6 +191,8 @@ const defaultReviews = [
     rating: 5,
     comment: 'The freeze GUI caught 4 x-rayers and closet cheaters in our first hour of running it. Highly recommended staff utility.',
     imageUrl: '',
+    likes: 6,
+    likedBy: ['admin'],
     createdAt: Date.now() - 86400000 * 5
   }
 ];
@@ -260,10 +266,14 @@ async function initDatabase() {
           -- 1. Plugin Downloads Tracker Table
           CREATE TABLE IF NOT EXISTS nexora_downloads (
             id VARCHAR(64) PRIMARY KEY,
+            plugin_id VARCHAR(64) NOT NULL DEFAULT 'nexora-anticheat',
+            account VARCHAR(128) NOT NULL,
             ip VARCHAR(64),
             user_agent TEXT,
             timestamp BIGINT NOT NULL
           );
+          ALTER TABLE nexora_downloads ADD COLUMN IF NOT EXISTS plugin_id VARCHAR(64) NOT NULL DEFAULT 'nexora-anticheat';
+          ALTER TABLE nexora_downloads ADD COLUMN IF NOT EXISTS account VARCHAR(128);
 
           -- 2. Registered Users Table (with Wallet Balance & Library)
           CREATE TABLE IF NOT EXISTS nexora_users (
@@ -316,8 +326,12 @@ async function initDatabase() {
             rating INT NOT NULL DEFAULT 5,
             comment TEXT NOT NULL,
             image_url TEXT,
+            likes INT NOT NULL DEFAULT 0,
+            liked_by TEXT NOT NULL DEFAULT '[]',
             created_at BIGINT NOT NULL
           );
+          ALTER TABLE nexora_reviews ADD COLUMN IF NOT EXISTS likes INT NOT NULL DEFAULT 0;
+          ALTER TABLE nexora_reviews ADD COLUMN IF NOT EXISTS liked_by TEXT NOT NULL DEFAULT '[]';
 
           -- 5. KHQR Wallet Deposits Table
           CREATE TABLE IF NOT EXISTS nexora_deposits (
@@ -449,13 +463,32 @@ async function loadFromPostgres() {
         rating: Number(r.rating),
         comment: r.comment,
         imageUrl: r.image_url,
+        likes: Number(r.likes || 0),
+        likedBy: JSON.parse(r.liked_by || '[]'),
         createdAt: Number(r.created_at)
       }));
     } else {
       store.reviews = defaultReviews;
     }
 
-    // 4. Deposits
+    // 4. Downloads
+    try {
+      const dlRes = await client.query('SELECT * FROM nexora_downloads ORDER BY timestamp DESC LIMIT 200');
+      if (dlRes.rows.length > 0) {
+        store.downloads = dlRes.rows.map(r => ({
+          id: r.id,
+          pluginId: r.plugin_id,
+          account: r.account,
+          ip: r.ip,
+          userAgent: r.user_agent,
+          timestamp: Number(r.timestamp)
+        }));
+      }
+    } catch (e) {
+      // ignore if empty
+    }
+
+    // 5. Deposits
     const depsRes = await client.query('SELECT * FROM nexora_deposits ORDER BY created_at DESC');
     if (depsRes.rows.length > 0) {
       store.deposits = depsRes.rows.map(r => ({
@@ -585,13 +618,24 @@ async function syncToPostgres(data) {
     // Sync reviews
     for (const r of (data.reviews || []).slice(0, 50)) {
       await client.query(`
-        INSERT INTO nexora_reviews (id, plugin_id, username, rating, comment, image_url, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO nexora_reviews (id, plugin_id, username, rating, comment, image_url, likes, liked_by, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (id) DO UPDATE SET
           comment = EXCLUDED.comment,
           rating = EXCLUDED.rating,
-          image_url = EXCLUDED.image_url;
-      `, [r.id, r.pluginId, r.username, r.rating, r.comment, r.imageUrl || '', r.createdAt]);
+          image_url = EXCLUDED.image_url,
+          likes = EXCLUDED.likes,
+          liked_by = EXCLUDED.liked_by;
+      `, [r.id, r.pluginId, r.username, r.rating, r.comment, r.imageUrl || '', r.likes || 0, JSON.stringify(r.likedBy || []), r.createdAt]);
+    }
+
+    // Sync downloads
+    for (const dl of (data.downloads || []).slice(0, 50)) {
+      await client.query(`
+        INSERT INTO nexora_downloads (id, plugin_id, account, ip, user_agent, timestamp)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (id) DO NOTHING;
+      `, [dl.id, dl.pluginId || 'nexora-anticheat', dl.account || 'unknown', dl.ip || '', dl.userAgent || '', dl.timestamp]);
     }
 
     // Sync deposits
