@@ -203,7 +203,7 @@ export default function UserDashboard({ user, onLogout }) {
   const apiUrl = window.location.origin;
 
   const configSnippet = `# ==========================================
-# NEXORA ANTICHEAT SERVER CONFIGURATION
+# BAYON ANTICHEAT SERVER CONFIGURATION
 # ==========================================
 license:
   key: "${user.licenseKey}"
@@ -431,7 +431,7 @@ license:
           <p style={{ maxWidth: '420px', margin: '0 auto 16px' }}>
             {isOnline
               ? 'Your server is connected and ready. Players joining your Minecraft server will automatically appear here with full action controls.'
-              : 'Your server is currently offline. Start your server and connect the NexoraAntiCheat plugin to monitor online players.'}
+              : 'Your server is currently offline. Start your server and connect the BayonAntiCheat plugin to monitor online players.'}
           </p>
           <button className="btn btn-secondary btn-sm" onClick={() => setActiveTab('connection')}>
             🌐 View Server Connection Settings
@@ -666,7 +666,7 @@ license:
       <div className="page-header">
         <div>
           <h1 className="page-title">Player AntiCheat Log</h1>
-          <p className="page-desc">Comprehensive log of cheat detection events flagged by Nexora AntiCheat.</p>
+          <p className="page-desc">Comprehensive log of cheat detection events flagged by Bayon AntiCheat.</p>
         </div>
         <div className="badge badge-yellow">
           {violations.length} Event{violations.length !== 1 ? 's' : ''} Logged
@@ -732,7 +732,7 @@ license:
       <div className="page-header">
         <div>
           <h1 className="page-title">Connect IP Server IP Port</h1>
-          <p className="page-desc">Link your Minecraft server to your Nexora AntiCheat license.</p>
+          <p className="page-desc">Link your Minecraft server to your Bayon AntiCheat license.</p>
         </div>
       </div>
 
@@ -766,7 +766,7 @@ license:
             </span>
           </div>
           <div className="info-row">
-            <span className="info-label">Nexora API Endpoint</span>
+            <span className="info-label">Bayon API Endpoint</span>
             <span className="info-value mono" style={{ fontSize: '12px' }}>{apiUrl}</span>
           </div>
 
@@ -812,7 +812,7 @@ license:
           </button>
         </div>
         <p className="page-desc" style={{ marginBottom: '12px' }}>
-          Paste this snippet into <code>plugins/NexoraAntiCheat/config.yml</code> on your Minecraft server:
+          Paste this snippet into <code>plugins/BayonAntiCheat/config.yml</code> on your Minecraft server:
         </p>
         <pre className="code-block">{configSnippet}</pre>
       </div>
@@ -832,7 +832,7 @@ license:
       <div className="uptime-banner">
         <div className="uptime-badge">
           <div className="uptime-pulse"></div>
-          <span>24/7 Nexora Fleet Server Running</span>
+          <span>24/7 Bayon Fleet Server Running</span>
         </div>
         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
           Always-on Background Monitoring
@@ -853,7 +853,7 @@ license:
             <span className="info-value mono">{server?.mcVersion || 'Paper 1.20+'}</span>
           </div>
           <div className="info-row">
-            <span className="info-label">Nexora Plugin Version</span>
+            <span className="info-label">Bayon Plugin Version</span>
             <span className="info-value mono">{server?.pluginVersion || 'v1.0.0'}</span>
           </div>
           <div className="info-row">

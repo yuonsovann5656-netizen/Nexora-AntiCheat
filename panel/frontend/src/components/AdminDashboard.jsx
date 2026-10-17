@@ -211,7 +211,7 @@ export default function AdminDashboard({ user, onLogout }) {
         </div>
         <div className="uptime-badge">
           <div className="uptime-pulse"></div>
-          <span>24/7 Nexora Authority Active</span>
+          <span>24/7 Bayon Authority Active</span>
         </div>
       </div>
 
@@ -387,7 +387,7 @@ export default function AdminDashboard({ user, onLogout }) {
       <div className="page-header">
         <div>
           <h1 className="page-title">Plugin Downloads Tracker</h1>
-          <p className="page-desc">Live statistics and history of users downloading your Nexora AntiCheat plugin.</p>
+          <p className="page-desc">Live statistics and history of users downloading your Bayon AntiCheat plugin.</p>
         </div>
         <div className="badge badge-blue">
           {downloadData.totalDownloads} Total Download{downloadData.totalDownloads !== 1 ? 's' : ''}
@@ -406,7 +406,7 @@ export default function AdminDashboard({ user, onLogout }) {
         <div className="stat-card">
           <span className="stat-label">Plugin Binary</span>
           <span className="stat-value" style={{ fontSize: '20px', marginTop: '4px' }}>
-            NexoraAntiCheat.jar
+            BayonAntiCheat.jar
           </span>
           <span className="stat-sub">Paper / Folia 1.20 - 1.21+</span>
         </div>
@@ -459,7 +459,7 @@ export default function AdminDashboard({ user, onLogout }) {
                       {formatDate(d.timestamp)}
                     </td>
                     <td>
-                      <span className="badge badge-green">NexoraAntiCheat-1.0.0.jar</span>
+                      <span className="badge badge-green">BayonAntiCheat-1.0.0.jar</span>
                     </td>
                   </tr>
                 ))}
@@ -483,7 +483,7 @@ export default function AdminDashboard({ user, onLogout }) {
       <div className="page-header">
         <div>
           <h1 className="page-title">Connected Server Fleet</h1>
-          <p className="page-desc">Every Minecraft server running your Nexora AntiCheat plugin.</p>
+          <p className="page-desc">Every Minecraft server running your Bayon AntiCheat plugin.</p>
         </div>
       </div>
 
@@ -578,7 +578,7 @@ export default function AdminDashboard({ user, onLogout }) {
           <div className="empty-state">
             <div className="empty-state-icon">🖥️</div>
             <h3>No Servers Connected Yet</h3>
-            <p>Servers will appear here automatically when they run your Nexora AntiCheat plugin.</p>
+            <p>Servers will appear here automatically when they run your Bayon AntiCheat plugin.</p>
           </div>
         )}
       </div>
@@ -636,19 +636,19 @@ export default function AdminDashboard({ user, onLogout }) {
                     {filteredPlugins.map((p, idx) => {
                       const pName = typeof p === 'string' ? p : (p.name || 'Plugin');
                       const pVer = typeof p === 'string' ? null : p.version;
-                      const isNexora = pName.toLowerCase().includes('nexora');
+                      const isBayon = pName.toLowerCase().includes('bayon') || pName.toLowerCase().includes('nexora');
 
                       return (
                         <div
                           key={idx}
                           className="plugin-card"
                           style={{
-                            borderColor: isNexora ? 'rgba(255, 26, 42, 0.4)' : undefined,
-                            background: isNexora ? 'rgba(255, 26, 42, 0.05)' : undefined,
+                            borderColor: isBayon ? 'rgba(255, 26, 42, 0.4)' : undefined,
+                            background: isBayon ? 'rgba(255, 26, 42, 0.05)' : undefined,
                           }}
                         >
                           <div className="plugin-name">
-                            <span>{isNexora ? '🛡️' : '📦'}</span>
+                            <span>{isBayon ? '🛡️' : '📦'}</span>
                             <span>{pName}</span>
                           </div>
                           <div className="plugin-version">
