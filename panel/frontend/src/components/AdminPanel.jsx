@@ -179,6 +179,51 @@ export default function AdminPanel({
     }
   };
 
+  const handleRenameCategory = async (oldName) => {
+    const newName = window.prompt(`Rename category "${oldName}" to:`, oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/categories/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldName, newName: newName.trim() })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAlertMsg({ type: 'success', text: data.message });
+        fetchAdminData();
+        if (onRefreshStore) onRefreshStore();
+      } else {
+        setAlertMsg({ type: 'error', text: data.error || 'Failed to rename category.' });
+      }
+    } catch {
+      setAlertMsg({ type: 'error', text: 'Network error renaming category.' });
+    }
+  };
+
+  const handleDeleteCategory = async (catName) => {
+    if (!window.confirm(`Delete category "${catName}"? All plugins in this category will be reassigned to "General".`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/categories/${encodeURIComponent(catName)}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAlertMsg({ type: 'success', text: data.message });
+        fetchAdminData();
+        if (onRefreshStore) onRefreshStore();
+      } else {
+        setAlertMsg({ type: 'error', text: data.error || 'Failed to delete category.' });
+      }
+    } catch {
+      setAlertMsg({ type: 'error', text: 'Network error deleting category.' });
+    }
+  };
+
   const handleAddChangelog = async (e) => {
     e.preventDefault();
     if (!selectedPluginId || !newChangelogTitle || !newChangelogNotes) {
@@ -352,7 +397,7 @@ export default function AdminPanel({
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
               <span>Server Local Storage</span>
               <span>•</span>
-              <span>Supabase PostgreSQL</span>
+              <span>Powered by ShotDi</span>
               <span>•</span>
               <span>Zero License Enforcement</span>
             </div>
@@ -611,12 +656,12 @@ export default function AdminPanel({
                 <span>Deployment Architecture & 24/7 Service</span>
               </h3>
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '12px' }}>
-                All plugin binaries are stored directly on the server disk (`storage/plugins/`). When users click Download, files are streamed directly via secure Node.js streams without exposing your GitHub repository. The 24/7 background keep-alive ping prevents Render free tier instances from sleeping.
+                All plugin binaries are stored directly on private server storage (`storage/plugins/`). When users click Download, files are streamed directly via secure Node.js streams without exposing your GitHub repository. The 24/7 background keep-alive ping ensures continuous active online service.
               </p>
               <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', flexWrap: 'wrap' }}>
                 <span>Storage: storage/plugins/</span>
                 <span>•</span>
-                <span>Database: Supabase PostgreSQL (Auto-Sync)</span>
+                <span>Engine: Powered by ShotDi Core</span>
                 <span>•</span>
                 <span>Keep-Alive: Active (8-min self-ping)</span>
                 <span>•</span>
@@ -629,6 +674,75 @@ export default function AdminPanel({
         {/* TAB 2: PLUGINS & JAR UPLOAD */}
         {activeTab === 'plugins' && (
           <div>
+            {/* Category Management Bar */}
+            <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '16px 20px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
+                    Category Manager
+                  </h4>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Rename or remove store categories across all products
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                {[...new Set(plugins.map(p => p.category || 'General'))].map(cat => {
+                  const count = plugins.filter(p => (p.category || 'General').toLowerCase() === cat.toLowerCase()).length;
+                  return (
+                    <div
+                      key={cat}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid var(--border-bright)',
+                        borderRadius: '6px',
+                        padding: '6px 10px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: '#fff' }}>{cat}</span>
+                      <span className="mono" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({count})</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRenameCategory(cat)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#00e599',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          padding: '0 4px',
+                          textDecoration: 'underline'
+                        }}
+                        title={`Rename category ${cat}`}
+                      >
+                        Rename
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCategory(cat)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#ff4d5e',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          padding: '0 4px'
+                        }}
+                        title={`Delete category ${cat}`}
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Catalog Management: Current Products & Remove action */}
             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '20px', marginBottom: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>

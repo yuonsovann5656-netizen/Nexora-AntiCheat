@@ -187,7 +187,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             NEXORA TECHNOLOGIES
           </div>
           <div style={{ fontSize: '11px', color: '#8892a4', letterSpacing: '0.5px', marginTop: '3px' }}>
-            SUPABASE AUTHENTICATION & ACCESS GATE
+            SHOTDI SECURE AUTHENTICATION & ACCESS GATE
           </div>
           <button
             onClick={onClose}
@@ -484,7 +484,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             </form>
           )}
 
-          {/* Supabase footer pill */}
+          {/* ShotDi security pill */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -501,7 +501,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             </span>
             <span>•</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <Zap size={12} /> Supabase PostgreSQL
+              <Zap size={12} /> Powered by ShotDi
             </span>
           </div>
 

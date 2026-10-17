@@ -907,8 +907,8 @@ license:
             <span className="info-value">{license?.expiresAt ? formatDate(license.expiresAt) : 'Never (Lifetime)'}</span>
           </div>
           <div className="info-row">
-            <span className="info-label">Database Provider</span>
-            <span className="info-value" style={{ color: 'var(--green)' }}>Supabase PostgreSQL</span>
+            <span className="info-label">Engine Architecture</span>
+            <span className="info-value" style={{ color: 'var(--green)' }}>Powered by ShotDi Core</span>
           </div>
         </div>
       </div>

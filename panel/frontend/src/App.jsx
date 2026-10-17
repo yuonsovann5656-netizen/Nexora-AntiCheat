@@ -4,12 +4,14 @@ import PluginDetailModal from './components/PluginDetailModal';
 import AuthModal from './components/AuthModal';
 import AdminPanel from './components/AdminPanel';
 import AdminLogin from './components/AdminLogin';
+import AccountSettingsModal from './components/AccountSettingsModal';
+import PluginDetailPage from './components/PluginDetailPage';
 import {
   Shield, Sword, Settings, Package, Plug,
   Star, Download, Tag, Bell, Wallet,
   Crown, BookOpen, Store, LogOut, User,
   ChevronRight, Search, CheckCircle, AlertCircle,
-  Share2
+  Share2, ExternalLink
 } from 'lucide-react';
 
 export default function App() {
@@ -36,6 +38,7 @@ export default function App() {
   // Modals & Popups
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [lightboxImg, setLightboxImg] = useState(null);
   const [viewFilter, setViewFilter] = useState('ALL'); // 'ALL' or 'MY_LIBRARY'
@@ -48,15 +51,16 @@ export default function App() {
     }
 
     const handlePopState = () => {
-      setCurrentPath((window.location.pathname || '/').toLowerCase());
+      const pathname = (window.location.pathname || '/').toLowerCase();
+      setCurrentPath(pathname);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Deep linking: Auto-open modal if URL has ?plugin=plugin-id
+  // Deep linking: Auto-open modal if URL has ?plugin=plugin-id and not on /detail-plugin
   useEffect(() => {
-    if (plugins.length > 0) {
+    if (plugins.length > 0 && currentPath !== '/detail-plugin') {
       const urlParams = new URLSearchParams(window.location.search);
       const targetId = urlParams.get('plugin');
       if (targetId) {
@@ -66,15 +70,15 @@ export default function App() {
         }
       }
     }
-  }, [plugins]);
+  }, [plugins, currentPath]);
 
   const handleSharePlugin = (plugin) => {
     if (!plugin) return;
-    const shareUrl = `${window.location.origin}/?plugin=${encodeURIComponent(plugin.id)}`;
+    const shareUrl = `${window.location.origin}/detail-plugin?plugin=${encodeURIComponent(plugin.id)}`;
     
     if (navigator.share) {
       navigator.share({
-        title: `${plugin.name} - Nexora AntiCheat`,
+        title: `${plugin.name} - Nexora Technologies`,
         text: `${plugin.name}: ${plugin.tagline}`,
         url: shareUrl,
       }).catch(() => {});
@@ -92,7 +96,8 @@ export default function App() {
 
   const navigateTo = (path) => {
     window.history.pushState(null, '', path);
-    setCurrentPath(path.toLowerCase());
+    const pathname = (path.split('?')[0] || '/').toLowerCase();
+    setCurrentPath(pathname);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -177,6 +182,28 @@ export default function App() {
           refreshUserSession();
         }}
         onReturnHome={() => navigateTo('/')}
+      />
+    );
+  }
+
+  // -------------------------------------------------------------
+  // DEDICATED /detail-plugin PAGE ROUTE
+  // -------------------------------------------------------------
+  if (currentPath === '/detail-plugin') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetId = urlParams.get('plugin');
+    const detailPlugin = (targetId ? plugins.find(p => p.id === targetId) : null) || selectedPlugin || plugins[0];
+
+    return (
+      <PluginDetailPage
+        plugin={detailPlugin}
+        plugins={plugins}
+        user={user}
+        onNavigateHome={() => navigateTo('/')}
+        onOpenAuth={() => setShowAuthModal(true)}
+        onPurchaseSuccess={handlePurchaseSuccess}
+        onOpenLightbox={imgUrl => setLightboxImg(imgUrl)}
+        onSharePlugin={handleSharePlugin}
       />
     );
   }
@@ -350,10 +377,32 @@ export default function App() {
                     <Crown size={13} /> Admin Panel
                   </button>
                 )}
-                <div style={{ textAlign: 'right', marginRight: '2px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{user.username}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{user.role}</div>
-                </div>
+                <button
+                  onClick={() => setShowAccountSettings(true)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '9px',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Account Settings & Profile"
+                >
+                  <img
+                    src={`https://mc-heads.net/avatar/${encodeURIComponent(user.username)}/32`}
+                    alt={user.username}
+                    style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)' }}
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>{user.username}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{user.role}</div>
+                  </div>
+                </button>
                 <button
                   className="btn btn-secondary btn-sm"
                   onClick={handleLogout}
@@ -384,7 +433,7 @@ export default function App() {
               style={{ width: '40px', height: '40px', borderRadius: '10px', boxShadow: '0 0 25px rgba(255, 255, 255, 0.2)' }}
             />
             <span className="badge badge-green" style={{ fontSize: '11px', letterSpacing: '1px' }}>
-              POWERED BY SUPABASE POSTGRESQL • 24/7 ONLINE
+              POWERED BY SHOTDI • 24/7 ONLINE
             </span>
           </div>
 
@@ -516,6 +565,18 @@ export default function App() {
                         <Share2 size={13} />
                       </button>
                       <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '7px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                        title="Open Dedicated Full Page"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigateTo(`/detail-plugin?plugin=${encodeURIComponent(plugin.id)}`);
+                        }}
+                      >
+                        <ExternalLink size={13} />
+                      </button>
+                      <button
                         className="btn btn-primary btn-sm"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -534,36 +595,147 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '36px 28px', marginTop: '40px', textAlign: 'center', background: 'var(--bg-secondary)' }}>
-        <div style={{ maxWidth: '1300px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img src="/logo.png" alt="Nexora Logo" style={{ width: '24px', height: '24px', borderRadius: '4px' }} />
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)' }}>
-              NEXORA TECHNOLOGIES
-            </span>
+      <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '40px 28px', marginTop: '50px', background: 'var(--bg-secondary)' }}>
+        <div style={{ maxWidth: '1300px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img src="/logo.png" alt="Nexora Logo" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' }}>
+                NEXORA TECHNOLOGIES
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Powered by ShotDi Core · Private Binary Infrastructure
+              </div>
+            </div>
           </div>
 
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            <span>Private Binary Storage</span>
-            <span>•</span>
-            <span>Render 24/7 Active Keep-Alive</span>
-            <span>•</span>
+          {/* Social Media Links */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <a
+              href="https://discord.gg"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'var(--text-muted)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                textDecoration: 'none',
+                transition: 'color 0.2s',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#5865F2'; e.currentTarget.style.borderColor = 'rgba(88,101,242,0.4)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+              </svg>
+              <span>Discord</span>
+            </a>
+
+            <a
+              href="https://youtube.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'var(--text-muted)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                textDecoration: 'none',
+                transition: 'color 0.2s',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#FF0000'; e.currentTarget.style.borderColor = 'rgba(255,0,0,0.4)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+              <span>YouTube</span>
+            </a>
+
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'var(--text-muted)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                textDecoration: 'none',
+                transition: 'color 0.2s',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+              <span>GitHub</span>
+            </a>
+
+            <a
+              href="https://t.me"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'var(--text-muted)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                textDecoration: 'none',
+                transition: 'color 0.2s',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#229ED9'; e.currentTarget.style.borderColor = 'rgba(34,158,217,0.4)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.536-.196 1.006.128.832.942z"/>
+              </svg>
+              <span>Telegram</span>
+            </a>
+
             <button
               onClick={() => navigateTo('/admin-panel')}
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-secondary)',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                color: 'var(--text-muted)',
+                borderRadius: '6px',
+                padding: '6px 10px',
                 cursor: 'pointer',
                 fontSize: '12px',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontFamily: 'inherit'
+                gap: '5px',
+                fontFamily: 'inherit',
+                transition: 'all 0.2s'
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
             >
               <Crown size={12} />
-              <span>Operator Panel</span>
+              <span>Operator</span>
             </button>
           </div>
         </div>
@@ -579,6 +751,21 @@ export default function App() {
         onPurchaseSuccess={handlePurchaseSuccess}
         onOpenLightbox={imgUrl => setLightboxImg(imgUrl)}
         onSharePlugin={handleSharePlugin}
+        onOpenDetailPage={(p) => {
+          setSelectedPlugin(null);
+          navigateTo(`/detail-plugin?plugin=${encodeURIComponent(p.id)}`);
+        }}
+      />
+
+      <AccountSettingsModal
+        isOpen={showAccountSettings}
+        onClose={() => setShowAccountSettings(false)}
+        user={user}
+        onUpdateUser={(updatedUser) => {
+          setUser(updatedUser);
+          localStorage.setItem('nexora_user', JSON.stringify(updatedUser));
+        }}
+        onLogout={handleLogout}
       />
 
       <AuthModal

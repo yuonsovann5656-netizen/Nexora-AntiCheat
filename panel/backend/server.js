@@ -315,6 +315,81 @@ app.get('/api/auth/me', (req, res) => {
   });
 });
 
+/**
+ * Change Email
+ * POST /api/user/change-email
+ * Body: { username, newEmail }
+ */
+app.post('/api/user/change-email', (req, res) => {
+  const { username, newEmail } = req.body;
+  if (!username || !newEmail) {
+    return res.status(400).json({ error: 'Username and new email address are required.' });
+  }
+
+  const cleanEmail = newEmail.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+
+  const data = readData();
+  const user = (data.users || []).find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'User account not found.' });
+  }
+
+  // Check if email already used by someone else
+  const emailTaken = (data.users || []).some(u => u.id !== user.id && u.email && u.email.toLowerCase() === cleanEmail);
+  if (emailTaken) {
+    return res.status(409).json({ error: 'Email address is already registered to another account.' });
+  }
+
+  user.email = cleanEmail;
+  user.emailVerified = true;
+  writeData(data);
+
+  return res.json({
+    success: true,
+    message: 'Email updated successfully!',
+    email: user.email
+  });
+});
+
+/**
+ * Change Password
+ * POST /api/user/change-password
+ * Body: { username, currentPassword, newPassword }
+ */
+app.post('/api/user/change-password', (req, res) => {
+  const { username, currentPassword, newPassword } = req.body;
+  if (!username || !currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Username, current password, and new password are required.' });
+  }
+
+  if (newPassword.length < 5) {
+    return res.status(400).json({ error: 'New password must be at least 5 characters long.' });
+  }
+
+  const data = readData();
+  const user = (data.users || []).find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'User account not found.' });
+  }
+
+  if (!verifyPassword(currentPassword, user.passwordHash, user.salt)) {
+    return res.status(401).json({ error: 'Current password is incorrect.' });
+  }
+
+  const creds = hashPassword(newPassword);
+  user.passwordHash = creds.hash;
+  user.salt = creds.salt;
+  writeData(data);
+
+  return res.json({
+    success: true,
+    message: 'Password changed successfully!'
+  });
+});
+
 // -------------------------------------------------------------
 // 2. E-COMMERCE & PLUGINS MARKETPLACE API
 // -------------------------------------------------------------
@@ -1000,6 +1075,66 @@ app.delete('/api/admin/plugins/:id', (req, res) => {
   res.json({
     success: true,
     message: `Plugin "${id}" removed from marketplace catalog.`
+  });
+});
+
+/**
+ * Admin rename category across all plugins
+ * PUT /api/admin/categories/rename
+ * Body: { oldName, newName }
+ */
+app.put('/api/admin/categories/rename', (req, res) => {
+  const { oldName, newName } = req.body;
+  if (!oldName || !newName) {
+    return res.status(400).json({ error: 'Old category name and new category name are required.' });
+  }
+
+  const cleanOld = oldName.trim();
+  const cleanNew = newName.trim();
+
+  const data = readData();
+  data.plugins = data.plugins || [];
+
+  let count = 0;
+  for (const p of data.plugins) {
+    if (p.category && p.category.toLowerCase() === cleanOld.toLowerCase()) {
+      p.category = cleanNew;
+      count++;
+    }
+  }
+
+  writeData(data);
+  res.json({
+    success: true,
+    message: `Renamed category "${cleanOld}" to "${cleanNew}" on ${count} plugin(s).`,
+    updatedCount: count
+  });
+});
+
+/**
+ * Admin delete/remove category (reassigns affected plugins to 'General')
+ * DELETE /api/admin/categories/:name
+ */
+app.delete('/api/admin/categories/:name', (req, res) => {
+  const { name } = req.params;
+  const targetCategory = decodeURIComponent(name).trim();
+
+  const data = readData();
+  data.plugins = data.plugins || [];
+
+  let count = 0;
+  for (const p of data.plugins) {
+    if (p.category && p.category.toLowerCase() === targetCategory.toLowerCase()) {
+      p.category = 'General';
+      count++;
+    }
+  }
+
+  writeData(data);
+  res.json({
+    success: true,
+    message: `Category "${targetCategory}" deleted. ${count} plugin(s) reassigned to "General".`,
+    reassignedCount: count
   });
 });
 

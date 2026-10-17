@@ -3,7 +3,7 @@ import { API_BASE } from '../apiConfig';
 import {
   X, Star, Download, Camera, Check,
   AlertTriangle, Shield, Sword, Settings,
-  Package, Plug, Share2, ThumbsUp
+  Package, Plug, Share2, ThumbsUp, ExternalLink
 } from 'lucide-react';
 
 const CATEGORY_ICONS = {
@@ -27,7 +27,8 @@ export default function PluginDetailModal({
   onOpenAuth,
   onPurchaseSuccess,
   onOpenLightbox,
-  onSharePlugin
+  onSharePlugin,
+  onOpenDetailPage
 }) {
   if (!isOpen || !plugin) return null;
 
@@ -218,6 +219,18 @@ export default function PluginDetailModal({
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onOpenDetailPage && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                onClick={() => onOpenDetailPage(plugin)}
+                title="Open Dedicated Full Page"
+              >
+                <ExternalLink size={13} />
+                <span>Full Page</span>
+              </button>
+            )}
             {onSharePlugin && (
               <button
                 type="button"
