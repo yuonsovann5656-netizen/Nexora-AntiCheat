@@ -85,6 +85,10 @@ public class PlayerManager implements Listener {
         if (antiDupe != null) {
             antiDupe.cleanup(event.getPlayer().getUniqueId());
         }
+        // Clean up AI Detection Engine per-player profile
+        if (plugin.getAiDetectionEngine() != null) {
+            plugin.getAiDetectionEngine().cleanup(event.getPlayer().getUniqueId());
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

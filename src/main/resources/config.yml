@@ -117,3 +117,19 @@ punishments:
   commands:
     # Executed if action is COMMAND
     - "say %player% was caught using unfair advantages (%check%)!"
+
+# ==========================================================
+#         BAYON AI DETECTION ENGINE (Local CPU/RAM ML)
+# ==========================================================
+ai:
+  # Enable on-server local AI anomaly detection engine.
+  # Uses Welford online z-score statistics directly on CPU/RAM — no external web API needed.
+  enabled: true
+  # Standard deviation threshold to classify a metric as anomalous (higher = less sensitive)
+  z-threshold: 2.5
+  # Multi-metric composite confidence score (0.0 - 1.0) required to trigger an AI alert
+  confidence-threshold: 0.75
+  # Minimum telemetry samples before AI evaluations are made (prevents cold-start false positives)
+  min-samples: 30
+  # Maximum memory footprint per player is ~400 bytes
+  max-profiles: 500

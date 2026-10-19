@@ -113,10 +113,12 @@ public class ReachCheck extends Check {
 
         if (distance > threshold) {
             double excess = distance - threshold;
+            // Faster detection: penalize blatantly distant reaches (>3.5 blocks) much faster
+            double addedVl = Math.max(1.0, excess * 5.0);
             flag(player, data,
                  String.format("Reach: %.2f > Max: %.2f (Ping: %dms, Excess: +%.2f, Trident: %b)",
                                distance, threshold, player.getPing(), excess, isTridentWindow(player)),
-                 1.0);
+                 addedVl);
         }
     }
 

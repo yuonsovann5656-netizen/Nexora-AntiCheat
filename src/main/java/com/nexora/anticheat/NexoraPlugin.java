@@ -12,6 +12,7 @@ import com.nexora.anticheat.storage.StorageManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import com.nexora.anticheat.ai.AiDetectionEngine;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -28,6 +29,7 @@ public final class NexoraPlugin extends JavaPlugin {
     private com.nexora.anticheat.punishment.BanManager banManager;
     private CheckManager checkManager;
     private StaffGuiManager staffGuiManager;
+    private AiDetectionEngine aiDetectionEngine;
 
     @Override
     public void onEnable() {
@@ -65,6 +67,10 @@ public final class NexoraPlugin extends JavaPlugin {
         this.checkManager = new CheckManager(this);
         this.checkManager.registerAll();
 
+        // 7b. Initialize Local AI Detection Engine (CPU & RAM Machine Learning)
+        this.aiDetectionEngine = new AiDetectionEngine(this);
+        this.aiDetectionEngine.start();
+
         // 8. Initialize Developer API
         NexoraAPI.init(this);
 
@@ -76,13 +82,17 @@ public final class NexoraPlugin extends JavaPlugin {
         long duration = System.currentTimeMillis() - startTime;
         Component enableMsg = MiniMessage.miniMessage().deserialize(
                 "<#FF0000><bold>Bayon AntiCheat</bold></#FF0000> <green>v" + getPluginMeta().getVersion()
-                        + " enabled successfully in " + duration + "ms on Paper 26.2!</green>"
+                        + " enabled successfully in " + duration + "ms with Local AI Engine on Paper 26.2!</green>"
         );
         Bukkit.getConsoleSender().sendMessage(enableMsg);
     }
 
     @Override
     public void onDisable() {
+        if (this.aiDetectionEngine != null) {
+            this.aiDetectionEngine.stop();
+        }
+
         if (this.checkManager != null) {
             this.checkManager.unregisterAll();
         }
@@ -142,5 +152,9 @@ public final class NexoraPlugin extends JavaPlugin {
 
     public StaffGuiManager getStaffGuiManager() {
         return staffGuiManager;
+    }
+
+    public AiDetectionEngine getAiDetectionEngine() {
+        return aiDetectionEngine;
     }
 }

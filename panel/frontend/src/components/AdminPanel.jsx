@@ -1004,12 +1004,34 @@ export default function AdminPanel({
                         </button>
                       </div>
                     </div>
-                    <input
-                      className="input-field"
-                      placeholder="Paste image link, /logo.png, or click preset..."
-                      value={newPluginLogo}
-                      onChange={e => setNewPluginLogo(e.target.value)}
-                    />
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <input
+                        className="input-field"
+                        placeholder="Paste image link, /logo.png, or click preset..."
+                        value={newPluginLogo}
+                        onChange={e => setNewPluginLogo(e.target.value)}
+                      />
+                      <input
+                        type="file"
+                        id="admin-logo-upload"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onloadend = () => setNewPluginLogo(reader.result);
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      <label
+                        htmlFor="admin-logo-upload"
+                        className="btn btn-secondary btn-sm"
+                        style={{ cursor: 'pointer', whiteSpace: 'nowrap', padding: '9px 12px', fontSize: '11px' }}
+                      >
+                        Choose File
+                      </label>
+                    </div>
                     {newPluginLogo && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
                         <img
@@ -1023,10 +1045,10 @@ export default function AdminPanel({
                     )}
                   </div>
 
-                  {/* Banner Preview URL with 1-click presets and instant preview */}
+                  {/* Banner Preview URL or File Upload with 1-click presets and instant preview */}
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <label className="form-label" style={{ marginBottom: 0 }}>Banner / Preview Image URL (No file upload needed)</label>
+                      <label className="form-label" style={{ marginBottom: 0 }}>Banner / Preview Image</label>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <button
                           type="button"
@@ -1062,12 +1084,34 @@ export default function AdminPanel({
                         </button>
                       </div>
                     </div>
-                    <input
-                      className="input-field"
-                      placeholder="Paste image link or choose preset above..."
-                      value={newPluginBanner}
-                      onChange={e => setNewPluginBanner(e.target.value)}
-                    />
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <input
+                        className="input-field"
+                        placeholder="Paste image link, or choose file..."
+                        value={newPluginBanner}
+                        onChange={e => setNewPluginBanner(e.target.value)}
+                      />
+                      <input
+                        type="file"
+                        id="admin-banner-upload"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onloadend = () => setNewPluginBanner(reader.result);
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      <label
+                        htmlFor="admin-banner-upload"
+                        className="btn btn-secondary btn-sm"
+                        style={{ cursor: 'pointer', whiteSpace: 'nowrap', padding: '9px 12px', fontSize: '11px' }}
+                      >
+                        Choose File
+                      </label>
+                    </div>
                     {newPluginBanner && (
                       <div style={{ marginTop: '6px' }}>
                         <img

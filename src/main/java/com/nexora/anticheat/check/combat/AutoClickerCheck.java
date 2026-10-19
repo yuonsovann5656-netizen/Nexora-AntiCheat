@@ -45,8 +45,23 @@ public class AutoClickerCheck extends Check {
         data.registerLeftClick();
 
         double cps = data.getCps();
+
+        // Feed click telemetry into the Local AI Detection Engine
+        if (plugin.getAiDetectionEngine() != null) {
+            plugin.getAiDetectionEngine().sample(
+                    player.getUniqueId(),
+                    cps,
+                    0.0,
+                    0.0,
+                    data.getTotalViolationLevel()
+            );
+        }
+
         if (cps > maxCps) {
-            flag(player, data, String.format("High CPS: %.1f > Max: %.1f", cps, maxCps), 1.0);
+            // Faster detection: add proportional VL based on how far above max CPS the player clicked
+            double excess = cps - maxCps;
+            double addedVl = Math.max(1.0, excess * 0.5);
+            flag(player, data, String.format("High CPS: %.1f > Max: %.1f", cps, maxCps), addedVl);
             return;
         }
 
@@ -55,7 +70,7 @@ public class AutoClickerCheck extends Check {
             double variance = data.getClickIntervalVariance();
             if (variance < minVariance && variance > 0.0) {
                 flag(player, data, String.format("Robotic click consistency: variance=%.2f < min=%.2f (CPS: %.1f)",
-                        variance, minVariance, cps), 1.0);
+                        variance, minVariance, cps), 1.5);
             }
         }
     }

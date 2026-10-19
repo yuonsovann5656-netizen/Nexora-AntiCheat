@@ -52,6 +52,7 @@ public class PlayerData {
 
     // Movement per-tick state (used by SpeedCheck to distinguish jump-launch tick)
     private volatile boolean lastTickOnGround = true;
+    private volatile int airTickCount = 0;
 
     // Alert toggles (Staff)
     private boolean alertsEnabled = true;
@@ -305,6 +306,14 @@ public class PlayerData {
 
     public void setLastTickOnGround(boolean onGround) {
         this.lastTickOnGround = onGround;
+    }
+
+    public int getAirTickCount() {
+        return airTickCount;
+    }
+
+    public void setAirTickCount(int count) {
+        this.airTickCount = count;
     }
 
     public boolean areAlertsEnabled() {

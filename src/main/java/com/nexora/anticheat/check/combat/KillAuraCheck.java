@@ -53,7 +53,9 @@ public class KillAuraCheck extends Check {
         // 1. Check line-of-sight angle offset
         double angleOffset = RayTraceUtil.getAngleOffset(eyeLoc, targetLoc);
         if (angleOffset > 75.0) {
-            flag(player, data, String.format("Attacked outside field of view: angle=%.1f° > 75°", angleOffset), 1.0);
+            double excess = angleOffset - 75.0;
+            double addedVl = Math.max(1.0, excess * 0.1);
+            flag(player, data, String.format("Attacked outside field of view: angle=%.1f° > 75°", angleOffset), addedVl);
             return;
         }
 
@@ -63,7 +65,7 @@ public class KillAuraCheck extends Check {
         if (lastTarget != null && !lastTarget.equals(target.getUniqueId())) {
             long diff = now - data.getLastAttackTimestamp();
             if (diff < multiTargetWindowMs) {
-                flag(player, data, String.format("Rapid target switch within %dms to different entity", diff), 1.5);
+                flag(player, data, String.format("Rapid target switch within %dms to different entity", diff), 2.0);
             }
         }
 
