@@ -1,12 +1,31 @@
 import React, { useState } from 'react';
 import { API_BASE } from '../apiConfig';
-import { Shield, Lock, User, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
+import { ShieldAlert, Lock, ArrowLeft, AlertCircle, KeyRound, CheckCircle } from 'lucide-react';
 
 export default function AdminLogin({ onLoginSuccess, onReturnHome }) {
+  // Security Code Gate: require security passcode first
+  const [securityUnlocked, setSecurityUnlocked] = useState(false);
+  const [securityCode, setSecurityCode] = useState('');
+  const [securityError, setSecurityError] = useState(null);
+
+  // Admin login credentials
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  const handleVerifySecurityCode = (e) => {
+    e.preventDefault();
+    setSecurityError(null);
+    const cleanCode = securityCode.trim();
+
+    // Accepted security codes: 777777, bayon2026, bayon_root, or admin
+    if (cleanCode === '777777' || cleanCode.toLowerCase() === 'bayon2026' || cleanCode.toLowerCase() === 'bayon_root') {
+      setSecurityUnlocked(true);
+    } else {
+      setSecurityError('Invalid security access key. Access prohibited.');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,7 +50,7 @@ export default function AdminLogin({ onLoginSuccess, onReturnHome }) {
 
       if (res.ok && data.success && data.user) {
         if (data.user.role !== 'ADMIN') {
-          setErrorMsg('Access denied: Your account does not possess ADMINISTRATOR privileges.');
+          setErrorMsg('Access denied: Account lacks required permissions.');
           setLoading(false);
           return;
         }
@@ -40,37 +59,142 @@ export default function AdminLogin({ onLoginSuccess, onReturnHome }) {
         localStorage.setItem('nexora_user', JSON.stringify(data.user));
         onLoginSuccess(data.user);
       } else {
-        setErrorMsg(data.error || data.message || 'Authentication failed. Please verify admin credentials.');
+        setErrorMsg(data.error || data.message || 'Authentication failed. Please verify credentials.');
       }
     } catch {
-      setErrorMsg('Network error connecting to authentication server.');
+      setErrorMsg('Network error connecting to authentication service.');
     } finally {
       setLoading(false);
     }
   };
 
+  // STEP 1: Security Code Gate
+  if (!securityUnlocked) {
+    return (
+      <div className="admin-login-wrapper">
+        <div className="admin-login-box">
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-bright)',
+              marginBottom: '14px'
+            }}>
+              <ShieldAlert size={28} style={{ color: '#fff' }} />
+            </div>
+
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#fff', letterSpacing: '0.8px', marginBottom: '6px' }}>
+              RESTRICTED SECURITY GATE
+            </h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              This system endpoint is protected. Please enter the authorized master security code to unlock.
+            </p>
+          </div>
+
+          {securityError && (
+            <div style={{
+              padding: '12px 14px',
+              borderRadius: '8px',
+              marginBottom: '18px',
+              fontSize: '12.5px',
+              background: 'rgba(239, 68, 68, 0.12)',
+              color: '#ef4444',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px'
+            }}>
+              <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span>{securityError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleVerifySecurityCode}>
+            <div style={{ marginBottom: '20px' }}>
+              <label className="form-label">Master Security Passcode</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="Enter security passcode..."
+                  value={securityCode}
+                  onChange={e => setSecurityCode(e.target.value)}
+                  autoFocus
+                  style={{
+                    letterSpacing: '3px',
+                    fontFamily: 'var(--font-mono)',
+                    textAlign: 'center',
+                    fontSize: '16px'
+                  }}
+                />
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center' }}>
+                Default security master key: <span style={{ color: '#fff', fontFamily: 'var(--font-mono)' }}>777777</span>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '12px', fontSize: '14px', marginBottom: '16px' }}
+            >
+              <KeyRound size={16} /> Unlock Gateway
+            </button>
+          </form>
+
+          <div style={{ textAlign: 'center', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+            <button
+              type="button"
+              onClick={onReturnHome}
+              className="btn-ghost"
+              style={{
+                fontSize: '12.5px',
+                color: 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                background: 'none',
+                border: 'none'
+              }}
+            >
+              <ArrowLeft size={14} />
+              <span>Return to Public Marketplace</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // STEP 2: Authenticated Login Screen (After Security Passcode is passed)
   return (
     <div className="admin-login-wrapper">
       <div className="admin-login-box">
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: '16px'
+            marginBottom: '14px'
           }}>
             <img
               src="/logo.png"
               alt="Bayon Logo"
-              style={{ width: '64px', height: '64px', objectFit: 'contain' }}
+              style={{ width: '56px', height: '56px', objectFit: 'contain' }}
             />
           </div>
 
           <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#fff', letterSpacing: '0.8px', marginBottom: '4px' }}>
-            BAYON ADMINISTRATOR PORTAL
+            BAYON SYSTEM CONSOLE
           </h2>
           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>
-            RESTRICTED ACCESS • OPERATOR AUTHENTICATION
+            OPERATOR AUTHENTICATION
           </p>
         </div>
 
@@ -80,9 +204,9 @@ export default function AdminLogin({ onLoginSuccess, onReturnHome }) {
             borderRadius: '8px',
             marginBottom: '18px',
             fontSize: '12.5px',
-            background: 'rgba(255, 51, 68, 0.12)',
-            color: '#ff4d5e',
-            border: '1px solid rgba(255, 51, 68, 0.3)',
+            background: 'rgba(239, 68, 68, 0.12)',
+            color: '#ef4444',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
             display: 'flex',
             alignItems: 'flex-start',
             gap: '8px'
@@ -94,33 +218,27 @@ export default function AdminLogin({ onLoginSuccess, onReturnHome }) {
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
-            <label className="form-label">Admin Username</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="admin"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                autoComplete="username"
-                style={{ marginBottom: 0 }}
-              />
-            </div>
+            <label className="form-label">Operator Username</label>
+            <input
+              type="text"
+              className="input-field"
+              placeholder="Username"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              autoComplete="username"
+            />
           </div>
 
           <div style={{ marginBottom: '22px' }}>
             <label className="form-label">Password</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="password"
-                className="input-field"
-                placeholder="••••••••"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                autoComplete="current-password"
-                style={{ marginBottom: 0 }}
-              />
-            </div>
+            <input
+              type="password"
+              className="input-field"
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
           </div>
 
           <button
@@ -129,7 +247,7 @@ export default function AdminLogin({ onLoginSuccess, onReturnHome }) {
             disabled={loading}
             style={{ width: '100%', padding: '12px', fontSize: '14px', marginBottom: '16px' }}
           >
-            {loading ? 'Verifying Credentials...' : 'Sign In to Admin Panel'}
+            {loading ? 'Authenticating...' : 'Sign In to Console'}
           </button>
         </form>
 

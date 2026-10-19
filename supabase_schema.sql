@@ -1,15 +1,12 @@
 -- ==========================================================
---     NEXORA ANTICHEAT - PRODUCTION SUPABASE POSTGRESQL SCHEMA
+--     BAYON TECHNOLOGIES - PRODUCTION SUPABASE POSTGRESQL SCHEMA
 -- ==========================================================
--- Run this script directly in your Supabase SQL Editor:
+-- Run this script in your Supabase SQL Editor:
 -- Supabase Dashboard -> SQL Editor -> New Query -> Paste & Run!
---
--- Note: The Nexora backend automatically connects to Supabase 
--- when DATABASE_URL is set in your Render environment variables.
 -- ==========================================================
 
--- 1. Registered Users Table (Auth, Balance, Email Verification & Purchased Library)
-CREATE TABLE IF NOT EXISTS nexora_users (
+-- 1. Official Bayon Users Table (E-Commerce Account Auth: NO LICENSE KEYS)
+CREATE TABLE IF NOT EXISTS bayon_users (
     id VARCHAR(64) PRIMARY KEY,
     username VARCHAR(64) UNIQUE NOT NULL,
     email VARCHAR(255),
@@ -24,27 +21,64 @@ CREATE TABLE IF NOT EXISTS nexora_users (
     last_login BIGINT
 );
 
--- Ensure all user columns exist on existing tables
-ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
-ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS balance DOUBLE PRECISION NOT NULL DEFAULT 0.00;
-ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS purchased_plugins TEXT NOT NULL DEFAULT '[]';
-ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(64);
-ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS license_key VARCHAR(128) DEFAULT '';
+-- Ensure all required columns exist in bayon_users
+ALTER TABLE bayon_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+ALTER TABLE bayon_users ADD COLUMN IF NOT EXISTS balance DOUBLE PRECISION NOT NULL DEFAULT 0.00;
+ALTER TABLE bayon_users ADD COLUMN IF NOT EXISTS purchased_plugins TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE bayon_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE bayon_users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(64);
 
--- Fix legacy license_key not-null constraint if table was created in an older schema version
+-- 2. Safe Auto-Migration from Legacy nexora_users (Fixes ERROR 42703 & 23502)
 DO $$ 
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'nexora_users' AND column_name = 'license_key'
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_name = 'nexora_users'
     ) THEN
-        ALTER TABLE nexora_users ALTER COLUMN license_key DROP NOT NULL;
-        ALTER TABLE nexora_users ALTER COLUMN license_key SET DEFAULT '';
+        -- Add email column if missing to prevent 42703
+        ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+        ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS balance DOUBLE PRECISION DEFAULT 0.00;
+        ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS purchased_plugins TEXT DEFAULT '[]';
+        ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
+        ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(64);
+
+        -- Drop not-null constraint on license_key if present
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'nexora_users' AND column_name = 'license_key'
+        ) THEN
+            ALTER TABLE nexora_users ALTER COLUMN license_key DROP NOT NULL;
+            ALTER TABLE nexora_users ALTER COLUMN license_key SET DEFAULT '';
+        END IF;
+
+        -- Seamlessly copy existing records to bayon_users
+        INSERT INTO bayon_users (id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, verification_code, created_at, last_login)
+        SELECT 
+            id, 
+            username, 
+            COALESCE(email, username || '@bayon.dev'), 
+            password_hash, 
+            salt, 
+            COALESCE(role, 'USER'), 
+            COALESCE(balance, 0.00), 
+            COALESCE(purchased_plugins, '[]'), 
+            COALESCE(email_verified, FALSE), 
+            verification_code, 
+            created_at, 
+            last_login
+        FROM nexora_users
+        ON CONFLICT (id) DO UPDATE SET
+            email = EXCLUDED.email,
+            password_hash = EXCLUDED.password_hash,
+            salt = EXCLUDED.salt,
+            role = EXCLUDED.role,
+            balance = EXCLUDED.balance,
+            purchased_plugins = EXCLUDED.purchased_plugins,
+            email_verified = EXCLUDED.email_verified;
     END IF;
 END $$;
 
--- 2. Plugins Catalog Table (Marketplace Products)
+-- 3. Plugins Catalog Table (Marketplace Products)
 CREATE TABLE IF NOT EXISTS nexora_plugins (
     id VARCHAR(64) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -70,7 +104,7 @@ CREATE TABLE IF NOT EXISTS nexora_plugins (
 ALTER TABLE nexora_plugins ADD COLUMN IF NOT EXISTS logo_url TEXT;
 ALTER TABLE nexora_plugins ADD COLUMN IF NOT EXISTS banner_url TEXT;
 
--- 3. Reviews & Feedback Table (Real ratings, comments, screenshots & upvote likes)
+-- 4. Reviews & Feedback Table
 CREATE TABLE IF NOT EXISTS nexora_reviews (
     id VARCHAR(64) PRIMARY KEY,
     plugin_id VARCHAR(64) NOT NULL,
@@ -82,26 +116,22 @@ CREATE TABLE IF NOT EXISTS nexora_reviews (
     liked_by TEXT NOT NULL DEFAULT '[]',
     created_at BIGINT NOT NULL
 );
-
--- Ensure likes columns exist on existing review tables
 ALTER TABLE nexora_reviews ADD COLUMN IF NOT EXISTS likes INT NOT NULL DEFAULT 0;
 ALTER TABLE nexora_reviews ADD COLUMN IF NOT EXISTS liked_by TEXT NOT NULL DEFAULT '[]';
 
--- 4. Real Downloads Audit Log Table (Tracking unique accounts & IPs per plugin)
+-- 5. Real Downloads Audit Log Table
 CREATE TABLE IF NOT EXISTS nexora_downloads (
     id VARCHAR(64) PRIMARY KEY,
-    plugin_id VARCHAR(64) NOT NULL DEFAULT 'nexora-anticheat',
+    plugin_id VARCHAR(64) NOT NULL DEFAULT 'bayon-anticheat',
     account VARCHAR(128) NOT NULL,
     ip VARCHAR(64),
     user_agent TEXT,
     timestamp BIGINT NOT NULL
 );
-
--- Ensure download columns exist on existing download tables
-ALTER TABLE nexora_downloads ADD COLUMN IF NOT EXISTS plugin_id VARCHAR(64) NOT NULL DEFAULT 'nexora-anticheat';
+ALTER TABLE nexora_downloads ADD COLUMN IF NOT EXISTS plugin_id VARCHAR(64) NOT NULL DEFAULT 'bayon-anticheat';
 ALTER TABLE nexora_downloads ADD COLUMN IF NOT EXISTS account VARCHAR(128);
 
--- 5. Deposits / Transactions Table
+-- 6. Deposits / Transactions Table
 CREATE TABLE IF NOT EXISTS nexora_deposits (
     id VARCHAR(64) PRIMARY KEY,
     user_id VARCHAR(64) NOT NULL,
@@ -116,7 +146,7 @@ CREATE TABLE IF NOT EXISTS nexora_deposits (
     approved_at BIGINT
 );
 
--- 6. Minecraft Server Fleet Heartbeat Table
+-- 7. Minecraft Server Fleet Heartbeat Table
 CREATE TABLE IF NOT EXISTS nexora_servers (
     id VARCHAR(64) PRIMARY KEY,
     server_name VARCHAR(255) NOT NULL,
@@ -134,8 +164,8 @@ CREATE TABLE IF NOT EXISTS nexora_servers (
 -- ==========================================================
 --                     PERFORMANCE INDEXES
 -- ==========================================================
-CREATE INDEX IF NOT EXISTS idx_users_username ON nexora_users(username);
-CREATE INDEX IF NOT EXISTS idx_users_email ON nexora_users(email);
+CREATE INDEX IF NOT EXISTS idx_bayon_users_username ON bayon_users(username);
+CREATE INDEX IF NOT EXISTS idx_bayon_users_email ON bayon_users(email);
 CREATE INDEX IF NOT EXISTS idx_plugins_category ON nexora_plugins(category);
 CREATE INDEX IF NOT EXISTS idx_reviews_plugin ON nexora_reviews(plugin_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_created ON nexora_reviews(created_at DESC);
@@ -147,9 +177,9 @@ CREATE INDEX IF NOT EXISTS idx_downloads_timestamp ON nexora_downloads(timestamp
 --                     DEFAULT SEED DATA
 -- ==========================================================
 
--- Seed Admin Account (username: admin, password: admin)
-INSERT INTO nexora_users (
-    id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, created_at, license_key
+-- Seed Admin Account into bayon_users (NO license key!)
+INSERT INTO bayon_users (
+    id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, created_at
 ) VALUES (
     'usr_admin',
     'admin',
@@ -160,9 +190,29 @@ INSERT INTO nexora_users (
     500.00,
     '["bayon-anticheat","nexora-core-staff","nexora-combat-log","nexora-security-bundle"]',
     TRUE,
-    1730000000000,
-    'ADMIN-BAYON-2026'
-) ON CONFLICT (id) DO UPDATE SET role = 'ADMIN', email_verified = TRUE, license_key = 'ADMIN-BAYON-2026';
+    1730000000000
+) ON CONFLICT (id) DO UPDATE SET role = 'ADMIN', email_verified = TRUE;
+
+-- Also seed into legacy nexora_users if it exists without license_key constraint issues
+DO $$ 
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'nexora_users') THEN
+        INSERT INTO nexora_users (
+            id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, created_at
+        ) VALUES (
+            'usr_admin',
+            'admin',
+            'admin@bayon.dev',
+            '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918',
+            'salt_nexora_admin_seed',
+            'ADMIN',
+            500.00,
+            '["bayon-anticheat","nexora-core-staff","nexora-combat-log","nexora-security-bundle"]',
+            TRUE,
+            1730000000000
+        ) ON CONFLICT (id) DO UPDATE SET role = 'ADMIN', email_verified = TRUE;
+    END IF;
+END $$;
 
 -- Seed Marketplace Plugins
 INSERT INTO nexora_plugins (
@@ -204,7 +254,9 @@ INSERT INTO nexora_plugins (
     '/api/plugins/nexora-core-staff/download',
     '1.20 - 1.21.4',
     '["Paper","Purpur","Folia"]',
-    '[{"version":"2.4.0","date":"October 10, 2026","title":"Packet Vanish Update","notes":["Packet entity destroy filter.","Staff notes system."]}]'
+    '[{"version":"2.4.0","date":"October 10, 2026","title":"Packet Vanish Update","notes":["Packet entity destroy filter.","Staff notes system."]}]',
+    '',
+    'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80'
 ),
 (
     'nexora-combat-log',
@@ -222,7 +274,9 @@ INSERT INTO nexora_plugins (
     '/api/plugins/nexora-combat-log/download',
     '1.20 - 1.21.4',
     '["Paper","Purpur","Folia"]',
-    '[{"version":"1.3.0","date":"October 5, 2026","title":"Actionbar Countdown","notes":["Adventure Actionbar timer.","Configurable NPC health."]}]'
+    '[{"version":"1.3.0","date":"October 5, 2026","title":"Actionbar Countdown","notes":["Adventure Actionbar timer.","Configurable NPC health."]}]',
+    '',
+    'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80'
 ),
 (
     'nexora-security-bundle',
@@ -240,45 +294,8 @@ INSERT INTO nexora_plugins (
     '/api/plugins/nexora-security-bundle/download',
     '1.20 - 1.21.4',
     '["Paper","Purpur","Folia"]',
-    '[{"version":"1.0.0","date":"October 16, 2026","title":"Complete 2026 Edition","notes":["Includes AntiCheat 1.0.0, Staff Suite 2.4.0, and CombatLog 1.3.0."]}]'
-)
-ON CONFLICT (id) DO NOTHING;
-
--- Seed Default Verified Community Reviews
-INSERT INTO nexora_reviews (
-    id, plugin_id, username, rating, comment, image_url, likes, liked_by, created_at
-) VALUES 
-(
-    'rev_1',
-    'nexora-anticheat',
-    'HypixelDev_Sokha',
-    5,
-    'The best Folia-ready anti-cheat we have tested. Zero false positives on 1.21.4 movement checks and instantaneous KillAura raytrace detection. The new update runs smooth as butter!',
-    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
-    14,
-    '["admin","MineCraftNetworkAdmin"]',
-    1729100000000
-),
-(
-    'rev_2',
-    'nexora-anticheat',
-    'MineCraftNetworkAdmin',
-    5,
-    'Massive TPS improvement compared to Spartan or Grim on our 200 player server. Shaded JAR dropped in and worked right out of the box with zero setup needed.',
-    '',
-    9,
-    '["HypixelDev_Sokha"]',
-    1729180000000
-),
-(
-    'rev_3',
-    'nexora-core-staff',
-    'PvPKingdomStaff',
-    5,
-    'The freeze GUI caught 4 x-rayers and closet cheaters in our first hour of running it. Highly recommended staff utility.',
-    '',
-    6,
-    '["admin"]',
-    1729000000000
+    '[{"version":"1.0.0","date":"October 16, 2026","title":"Complete 2026 Edition","notes":["Includes AntiCheat 1.0.0, Staff Suite 2.4.0, and CombatLog 1.3.0."]}]',
+    '/logo.png',
+    'https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=800&q=80'
 )
 ON CONFLICT (id) DO NOTHING;

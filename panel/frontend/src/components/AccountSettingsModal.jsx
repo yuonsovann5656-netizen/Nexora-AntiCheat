@@ -133,7 +133,7 @@ export default function AccountSettingsModal({
                 ACCOUNT SETTINGS
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Manage your credentials and ShotDi profile
+                Manage your credentials and marketplace profile
               </div>
             </div>
           </div>
@@ -225,20 +225,9 @@ export default function AccountSettingsModal({
                 borderRadius: '10px',
                 marginBottom: '20px'
               }}>
-                <img
-                  src={avatarUrl}
-                  alt={user.username}
-                  style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '8px',
-                    border: '2px solid #00e599',
-                    boxShadow: '0 0 15px rgba(0, 229, 153, 0.2)'
-                  }}
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                  }}
-                />
+                <div className="user-avatar-initials xl">
+                  {user.username.charAt(0).toUpperCase()}
+                </div>
                 <div>
                   <div style={{ fontSize: '18px', fontWeight: 800, color: '#fff' }}>
                     {user.username}

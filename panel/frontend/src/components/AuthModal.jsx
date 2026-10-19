@@ -187,10 +187,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             />
           </div>
           <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '1px', color: '#fff' }}>
-            BAYON TECHNOLOGIES
+            BAYON MARKETPLACE
           </div>
           <div style={{ fontSize: '11px', color: '#8892a4', letterSpacing: '0.5px', marginTop: '3px' }}>
-            SHOTDI SECURE AUTHENTICATION & ACCESS GATE
+            CUSTOMER ACCOUNT & DIGITAL ASSET PORTAL
           </div>
           <button
             onClick={onClose}
@@ -309,7 +309,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 <input
                   type="text"
                   className="input-field mono"
-                  placeholder="e.g. HypixelDev"
+                  placeholder="e.g. alexander"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   required

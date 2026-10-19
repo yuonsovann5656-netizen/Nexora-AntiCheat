@@ -280,17 +280,17 @@ async function initDatabase() {
           -- 1. Plugin Downloads Tracker Table
           CREATE TABLE IF NOT EXISTS nexora_downloads (
             id VARCHAR(64) PRIMARY KEY,
-            plugin_id VARCHAR(64) NOT NULL DEFAULT 'nexora-anticheat',
+            plugin_id VARCHAR(64) NOT NULL DEFAULT 'bayon-anticheat',
             account VARCHAR(128) NOT NULL,
             ip VARCHAR(64),
             user_agent TEXT,
             timestamp BIGINT NOT NULL
           );
-          ALTER TABLE nexora_downloads ADD COLUMN IF NOT EXISTS plugin_id VARCHAR(64) NOT NULL DEFAULT 'nexora-anticheat';
+          ALTER TABLE nexora_downloads ADD COLUMN IF NOT EXISTS plugin_id VARCHAR(64) NOT NULL DEFAULT 'bayon-anticheat';
           ALTER TABLE nexora_downloads ADD COLUMN IF NOT EXISTS account VARCHAR(128);
 
-          -- 2. Registered Users Table (with Wallet Balance & Library)
-          CREATE TABLE IF NOT EXISTS nexora_users (
+          -- 2. Official Bayon Users Table (Pure account auth: username, email, password - ZERO license key)
+          CREATE TABLE IF NOT EXISTS bayon_users (
             id VARCHAR(64) PRIMARY KEY,
             username VARCHAR(64) UNIQUE NOT NULL,
             email VARCHAR(255),
@@ -299,27 +299,60 @@ async function initDatabase() {
             role VARCHAR(32) NOT NULL DEFAULT 'USER',
             balance DOUBLE PRECISION NOT NULL DEFAULT 0.00,
             purchased_plugins TEXT NOT NULL DEFAULT '[]',
+            email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+            verification_code VARCHAR(64),
             created_at BIGINT NOT NULL,
             last_login BIGINT
           );
+          ALTER TABLE bayon_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+          ALTER TABLE bayon_users ADD COLUMN IF NOT EXISTS balance DOUBLE PRECISION NOT NULL DEFAULT 0.00;
+          ALTER TABLE bayon_users ADD COLUMN IF NOT EXISTS purchased_plugins TEXT NOT NULL DEFAULT '[]';
+          ALTER TABLE bayon_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+          ALTER TABLE bayon_users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(64);
 
-          -- Ensure email, balance, verification & purchased_plugins exist
-          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
-          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS balance DOUBLE PRECISION NOT NULL DEFAULT 0.00;
-          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS purchased_plugins TEXT NOT NULL DEFAULT '[]';
-          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
-          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(64);
-          ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS license_key VARCHAR(128) DEFAULT '';
-
-          -- Fix legacy license_key not-null constraint if table was created in an older schema version
+          -- Safe migration from legacy nexora_users if it exists
           DO $$ 
           BEGIN
               IF EXISTS (
-                  SELECT 1 FROM information_schema.columns 
-                  WHERE table_name = 'nexora_users' AND column_name = 'license_key'
+                  SELECT 1 FROM information_schema.tables 
+                  WHERE table_name = 'nexora_users'
               ) THEN
-                  ALTER TABLE nexora_users ALTER COLUMN license_key DROP NOT NULL;
-                  ALTER TABLE nexora_users ALTER COLUMN license_key SET DEFAULT '';
+                  ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+                  ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS balance DOUBLE PRECISION DEFAULT 0.00;
+                  ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS purchased_plugins TEXT DEFAULT '[]';
+                  ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
+                  ALTER TABLE nexora_users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(64);
+                  
+                  IF EXISTS (
+                      SELECT 1 FROM information_schema.columns 
+                      WHERE table_name = 'nexora_users' AND column_name = 'license_key'
+                  ) THEN
+                      ALTER TABLE nexora_users ALTER COLUMN license_key DROP NOT NULL;
+                      ALTER TABLE nexora_users ALTER COLUMN license_key SET DEFAULT '';
+                  END IF;
+
+                  -- Migrate users to bayon_users
+                  INSERT INTO bayon_users (id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, verification_code, created_at, last_login)
+                  SELECT 
+                      id, 
+                      username, 
+                      COALESCE(email, username || '@bayon.dev'), 
+                      password_hash, 
+                      salt, 
+                      COALESCE(role, 'USER'), 
+                      COALESCE(balance, 0.00), 
+                      COALESCE(purchased_plugins, '[]'), 
+                      COALESCE(email_verified, FALSE), 
+                      verification_code, 
+                      created_at, 
+                      last_login 
+                  FROM nexora_users
+                  ON CONFLICT (id) DO UPDATE SET
+                      email = EXCLUDED.email,
+                      balance = EXCLUDED.balance,
+                      purchased_plugins = EXCLUDED.purchased_plugins,
+                      email_verified = EXCLUDED.email_verified,
+                      last_login = EXCLUDED.last_login;
               END IF;
           END $$;
 
@@ -438,8 +471,13 @@ async function loadFromPostgres() {
 
   const client = await pgPool.connect();
   try {
-    // 1. Users
-    const usersRes = await client.query('SELECT * FROM nexora_users');
+    // 1. Users (Query bayon_users first, fallback to nexora_users)
+    let usersRes;
+    try {
+      usersRes = await client.query('SELECT * FROM bayon_users');
+    } catch {
+      usersRes = await client.query('SELECT * FROM nexora_users');
+    }
     if (usersRes.rows.length > 0) {
       store.users = usersRes.rows.map(r => ({
         id: r.id,
@@ -452,7 +490,6 @@ async function loadFromPostgres() {
         emailVerified: r.email_verified === true || r.role === 'ADMIN',
         verificationCode: r.verification_code || null,
         purchasedPlugins: JSON.parse(r.purchased_plugins || '[]'),
-        licenseKey: r.license_key || null,
         createdAt: Number(r.created_at),
         lastLogin: r.last_login ? Number(r.last_login) : null
       }));
@@ -626,22 +663,45 @@ async function syncToPostgres(data) {
   }
 
   try {
-    // Sync users
+    // Sync users to bayon_users (and fallback mirror to nexora_users if it exists)
     for (const u of (data.users || [])) {
-      await client.query(`
-        INSERT INTO nexora_users (id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, verification_code, created_at, last_login, license_key)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        ON CONFLICT (id) DO UPDATE SET
-          email = EXCLUDED.email,
-          password_hash = EXCLUDED.password_hash,
-          salt = EXCLUDED.salt,
-          balance = EXCLUDED.balance,
-          purchased_plugins = EXCLUDED.purchased_plugins,
-          email_verified = EXCLUDED.email_verified,
-          verification_code = EXCLUDED.verification_code,
-          last_login = EXCLUDED.last_login,
-          license_key = EXCLUDED.license_key;
-      `, [u.id, u.username, u.email || '', u.passwordHash, u.salt, u.role || 'USER', u.balance || 0, JSON.stringify(u.purchasedPlugins || []), u.emailVerified === true, u.verificationCode || null, u.createdAt, u.lastLogin, u.licenseKey || '']);
+      try {
+        await client.query(`
+          INSERT INTO bayon_users (id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, verification_code, created_at, last_login)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ON CONFLICT (id) DO UPDATE SET
+            email = EXCLUDED.email,
+            password_hash = EXCLUDED.password_hash,
+            salt = EXCLUDED.salt,
+            role = EXCLUDED.role,
+            balance = EXCLUDED.balance,
+            purchased_plugins = EXCLUDED.purchased_plugins,
+            email_verified = EXCLUDED.email_verified,
+            verification_code = EXCLUDED.verification_code,
+            last_login = EXCLUDED.last_login;
+        `, [u.id, u.username, u.email || '', u.passwordHash, u.salt, u.role || 'USER', u.balance || 0, JSON.stringify(u.purchasedPlugins || []), u.emailVerified === true, u.verificationCode || null, u.createdAt, u.lastLogin]);
+      } catch (err) {
+        console.warn('[Database] Sync to bayon_users error:', err.message);
+      }
+
+      // Backwards mirror to nexora_users if legacy table exists
+      try {
+        await client.query(`
+          INSERT INTO nexora_users (id, username, email, password_hash, salt, role, balance, purchased_plugins, email_verified, verification_code, created_at, last_login)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ON CONFLICT (id) DO UPDATE SET
+            email = EXCLUDED.email,
+            password_hash = EXCLUDED.password_hash,
+            salt = EXCLUDED.salt,
+            balance = EXCLUDED.balance,
+            purchased_plugins = EXCLUDED.purchased_plugins,
+            email_verified = EXCLUDED.email_verified,
+            verification_code = EXCLUDED.verification_code,
+            last_login = EXCLUDED.last_login;
+        `, [u.id, u.username, u.email || '', u.passwordHash, u.salt, u.role || 'USER', u.balance || 0, JSON.stringify(u.purchasedPlugins || []), u.emailVerified === true, u.verificationCode || null, u.createdAt, u.lastLogin]);
+      } catch {
+        // Ignored if nexora_users doesn't exist or is not matching
+      }
     }
 
     // Sync plugins

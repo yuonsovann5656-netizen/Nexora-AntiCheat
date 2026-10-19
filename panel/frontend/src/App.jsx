@@ -10,7 +10,7 @@ import {
   Shield, Sword, Settings, Package, Plug,
   Star, Download, Tag, Bell, Wallet,
   Crown, BookOpen, Store, LogOut, User,
-  ChevronRight, Search, CheckCircle, AlertCircle,
+  ChevronRight, ChevronDown, Search, CheckCircle, AlertCircle,
   Share2, ExternalLink, Menu, X
 } from 'lucide-react';
 
@@ -40,6 +40,7 @@ export default function App() {
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [lightboxImg, setLightboxImg] = useState(null);
   const [viewFilter, setViewFilter] = useState('ALL'); // 'ALL' or 'MY_LIBRARY'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -57,6 +58,20 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Close floating dropdowns on click outside
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.user-menu-container')) {
+        setShowUserDropdown(false);
+      }
+      if (!e.target.closest('.notif-wrapper')) {
+        setShowNotifDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
   // Deep linking: Auto-open modal if URL has ?plugin=plugin-id and not on /detail-plugin
@@ -302,34 +317,13 @@ export default function App() {
           </nav>
 
           <div className="nav-actions">
-            {/* Wallet Balance Pill */}
-            {user && (
-              <div className="wallet-pill">
-                <Wallet size={14} style={{ color: 'var(--text-muted)' }} />
-                <span className="wallet-balance">${Number(user.balance || 0).toFixed(2)}</span>
-                {user.emailVerified ? (
-                  <span className="badge badge-green" style={{ fontSize: '10px', padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                    <CheckCircle size={10} /> VERIFIED
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => setShowAuthModal(true)}
-                    className="badge badge-yellow"
-                    style={{ fontSize: '10px', padding: '2px 7px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                    title="Click to verify email"
-                  >
-                    <AlertCircle size={10} /> VERIFY
-                  </button>
-                )}
-              </div>
-            )}
-
             {/* Notification Bell */}
             <div className="notif-wrapper">
               <button
                 className="notif-btn"
                 onClick={() => setShowNotifDropdown(!showNotifDropdown)}
                 title="Updates & Changelogs"
+                aria-label="View notifications"
               >
                 <Bell size={16} />
                 {notifications.length > 0 && <span className="notif-dot"></span>}
@@ -365,52 +359,126 @@ export default function App() {
               )}
             </div>
 
-            {/* User / Admin / Login */}
+            {/* Unified User Dropdown (E-Commerce Account) */}
             {user ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {user.role === 'ADMIN' && (
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    style={{ borderColor: '#fff', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                    onClick={() => navigateTo('/admin-panel')}
-                    title="Open Standalone Admin Portal"
-                  >
-                    <Crown size={13} /> Admin Panel
-                  </button>
-                )}
+              <div className="user-menu-container">
                 <button
-                  onClick={() => setShowAccountSettings(true)}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '8px',
-                    padding: '4px 10px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '9px',
-                    transition: 'all 0.15s ease'
-                  }}
-                  title="Account Settings & Profile"
+                  type="button"
+                  className="user-menu-trigger"
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  aria-label="Open user menu"
                 >
-                  <img
-                    src={`https://mc-heads.net/avatar/${encodeURIComponent(user.username)}/32`}
-                    alt={user.username}
-                    style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)' }}
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>{user.username}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{user.role}</div>
+                  <div className="user-avatar-initials">
+                    {user.username.charAt(0).toUpperCase()}
                   </div>
+                  <div className="user-menu-info">
+                    <span className="user-menu-name">{user.username}</span>
+                    <span className="user-menu-balance">${Number(user.balance || 0).toFixed(2)}</span>
+                  </div>
+                  <ChevronDown size={14} className={`user-menu-chevron ${showUserDropdown ? 'open' : ''}`} />
                 </button>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={handleLogout}
-                  title="Sign Out"
-                >
-                  <LogOut size={13} />
-                </button>
+
+                {showUserDropdown && (
+                  <div className="user-dropdown-card">
+                    {/* User Header */}
+                    <div className="user-dropdown-header">
+                      <div className="user-avatar-initials large">
+                        {user.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span className="user-dropdown-username">{user.username}</span>
+                          {user.emailVerified && (
+                            <span className="badge badge-green" style={{ fontSize: '9px', padding: '1px 6px' }}>VERIFIED</span>
+                          )}
+                        </div>
+                        <div className="user-dropdown-email">{user.email || 'Customer Account'}</div>
+                      </div>
+                    </div>
+
+                    {/* Balance Banner */}
+                    <div className="user-dropdown-balance-box">
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>AVAILABLE BALANCE</div>
+                        <div style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)' }}>${Number(user.balance || 0).toFixed(2)}</div>
+                      </div>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: '11px', padding: '4px 10px' }}
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          setShowAccountSettings(true);
+                        }}
+                      >
+                        + Deposit
+                      </button>
+                    </div>
+
+                    {/* Menu Options */}
+                    <div className="user-dropdown-links">
+                      <button
+                        className="user-dropdown-item"
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          setViewFilter('MY_LIBRARY');
+                        }}
+                      >
+                        <BookOpen size={15} />
+                        <span>My Library ({user.purchasedPlugins ? user.purchasedPlugins.length : 0})</span>
+                      </button>
+
+                      <button
+                        className="user-dropdown-item"
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          setShowAccountSettings(true);
+                        }}
+                      >
+                        <Settings size={15} />
+                        <span>Account & Security Settings</span>
+                      </button>
+
+                      <button
+                        className="user-dropdown-item"
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          if (plugins.length > 0) setSelectedPlugin(plugins[0]);
+                        }}
+                      >
+                        <Tag size={15} />
+                        <span>Releases & Updates</span>
+                      </button>
+
+                      {/* Discreet operator console link if admin (guarded by security code) */}
+                      {user.role === 'ADMIN' && (
+                        <button
+                          className="user-dropdown-item"
+                          style={{ color: '#8892a4', fontSize: '11.5px' }}
+                          onClick={() => {
+                            setShowUserDropdown(false);
+                            navigateTo('/admin-panel');
+                          }}
+                        >
+                          <Shield size={13} />
+                          <span>System Console</span>
+                        </button>
+                      )}
+
+                      <div className="user-dropdown-divider" />
+
+                      <button
+                        className="user-dropdown-item danger-item"
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          handleLogout();
+                        }}
+                      >
+                        <LogOut size={15} />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <button
@@ -439,12 +507,9 @@ export default function App() {
             {user ? (
               <div className="mobile-user-section">
                 <div className="mobile-user-card">
-                  <img
-                    src={`https://mc-heads.net/avatar/${encodeURIComponent(user.username)}/40`}
-                    alt={user.username}
-                    className="mobile-user-avatar"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
+                  <div className="user-avatar-initials large">
+                    {user.username.charAt(0).toUpperCase()}
+                  </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '15px', fontWeight: 800, color: '#fff' }}>{user.username}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
@@ -475,7 +540,7 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Account Profile and Admin Quick Access */}
+                {/* Account Profile Quick Access */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
                   <button
                     className="btn btn-secondary btn-full"
@@ -485,18 +550,29 @@ export default function App() {
                       setMobileMenuOpen(false);
                     }}
                   >
-                    <User size={15} /> Account Profile & Settings
+                    <Settings size={15} /> Account Settings & Security
                   </button>
 
                   <button
-                    className="btn btn-primary btn-full"
-                    style={{ justifyContent: 'flex-start', padding: '10px 14px', fontSize: '13px', background: user.role === 'ADMIN' ? '#fff' : 'var(--bg-card)', color: user.role === 'ADMIN' ? '#000' : '#fff', fontWeight: 700 }}
+                    className="btn btn-secondary btn-full"
+                    style={{ justifyContent: 'flex-start', padding: '10px 14px', fontSize: '13px' }}
                     onClick={() => {
-                      navigateTo('/admin-panel');
+                      setViewFilter('MY_LIBRARY');
                       setMobileMenuOpen(false);
                     }}
                   >
-                    <Crown size={15} /> {user.role === 'ADMIN' ? 'Admin Panel' : 'Admin Portal'}
+                    <BookOpen size={15} /> My Purchased Assets ({user.purchasedPlugins ? user.purchasedPlugins.length : 0})
+                  </button>
+
+                  <button
+                    className="btn btn-danger btn-full"
+                    style={{ justifyContent: 'flex-start', padding: '10px 14px', fontSize: '13px', marginTop: '4px' }}
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <LogOut size={15} /> Sign Out
                   </button>
                 </div>
               </div>
@@ -511,16 +587,6 @@ export default function App() {
                   }}
                 >
                   <User size={15} /> Sign In / Create Account
-                </button>
-                <button
-                  className="btn btn-secondary btn-full"
-                  style={{ padding: '10px', fontSize: '13px' }}
-                  onClick={() => {
-                    navigateTo('/admin-panel');
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  <Crown size={15} /> Admin Panel Login
                 </button>
               </div>
             )}
