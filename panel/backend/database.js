@@ -426,6 +426,9 @@ async function initDatabase() {
             last_heartbeat BIGINT NOT NULL,
             first_seen BIGINT NOT NULL
           );
+
+          -- Automatically delete any legacy demo products
+          DELETE FROM nexora_plugins WHERE id = 'demo' OR LOWER(name) = 'demo' OR LOWER(id) LIKE '%demo%';
         `);
         console.log('[Database] Supabase PostgreSQL tables verified successfully.');
       } finally {
@@ -448,11 +451,14 @@ async function initDatabase() {
       memoryStore = {
         ...defaultState,
         ...loaded,
-        users: loaded.users && loaded.users.length ? loaded.users : defaultState.users,
-        plugins: loaded.plugins && loaded.plugins.length ? loaded.plugins : defaultPlugins,
-        reviews: loaded.reviews && loaded.reviews.length ? loaded.reviews : defaultReviews,
-        deposits: loaded.deposits && loaded.deposits.length ? loaded.deposits : defaultDeposits
+        users: Array.isArray(loaded.users) ? loaded.users : defaultState.users,
+        plugins: Array.isArray(loaded.plugins) ? loaded.plugins : defaultPlugins,
+        reviews: Array.isArray(loaded.reviews) ? loaded.reviews : defaultReviews,
+        deposits: Array.isArray(loaded.deposits) ? loaded.deposits : defaultDeposits
       };
+      if (memoryStore.plugins) {
+        memoryStore.plugins = memoryStore.plugins.filter(p => p.id !== 'demo' && (p.name || '').toLowerCase() !== 'demo');
+      }
       console.log(`[Database] Loaded local store from ${DATA_FILE}`);
     } catch (err) {
       console.error('[Database] Failed to parse local JSON store, using defaults:', err.message);
@@ -716,6 +722,8 @@ async function syncToPostgres(data) {
     if (validPluginIds.length > 0) {
       const placeholders = validPluginIds.map((_, i) => `$${i + 1}`).join(',');
       await client.query(`DELETE FROM nexora_plugins WHERE id NOT IN (${placeholders})`, validPluginIds);
+    } else {
+      await client.query(`DELETE FROM nexora_plugins`);
     }
 
     for (const p of (data.plugins || [])) {
