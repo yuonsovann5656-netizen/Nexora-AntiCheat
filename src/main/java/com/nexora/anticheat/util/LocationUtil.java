@@ -151,4 +151,34 @@ public final class LocationUtil {
         }
         return false;
     }
+
+    /**
+     * Checks if a location is near stairs, slabs, or partial elevation blocks.
+     *
+     * @param location Location to test.
+     * @return True if near stairs or slabs.
+     */
+    public static boolean isNearStairsOrSlabs(Location location) {
+        if (location == null || location.getWorld() == null) {
+            return false;
+        }
+
+        World world = location.getWorld();
+        int bx = location.getBlockX();
+        int by = location.getBlockY();
+        int bz = location.getBlockZ();
+
+        for (int x = -1; x <= 1; x++) {
+            for (int y = -1; y <= 1; y++) {
+                for (int z = -1; z <= 1; z++) {
+                    String name = world.getBlockAt(bx + x, by + y, bz + z).getType().name();
+                    if (name.endsWith("_STAIRS") || name.endsWith("_SLAB") || name.endsWith("_STEP")
+                            || name.contains("CARPET") || name.contains("SNOW")) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 }

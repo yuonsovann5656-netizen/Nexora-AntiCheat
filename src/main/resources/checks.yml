@@ -10,17 +10,18 @@ movement:
     setback: true
     punishment: "KICK"
     base-speed: 0.36
-    ice-multiplier: 1.6
-    # Multiplier applied for first jump-launch air tick (tick 0)
-    jump-boost-factor: 1.55
-    # Decay table multipliers for air ticks 1-5 of a sprint-jump arc (prevents jump false positive)
-    jump-decay-1: 1.42
-    jump-decay-2: 1.30
-    jump-decay-3: 1.20
-    jump-decay-4: 1.12
-    jump-decay-5: 1.07
-    # Multiplier for air ticks 6+ (catches actual fly hacks after natural jump arc ends)
-    air-multiplier: 1.05
+    sprint-multiplier: 1.18
+    ice-multiplier: 1.60
+    # Multiplier applied for first jump-launch air tick (tick 0-1) - allows legitimate 0.612+ sprint jump impulse
+    jump-boost-factor: 1.95
+    # Decay table multipliers for air ticks 2-6 of a sprint-jump arc (prevents jump false positive)
+    jump-decay-1: 1.78
+    jump-decay-2: 1.62
+    jump-decay-3: 1.45
+    jump-decay-4: 1.30
+    jump-decay-5: 1.18
+    # Multiplier for air ticks 7+ (catches actual fly/speed hacks after natural jump arc ends)
+    air-multiplier: 1.08
     # Extra tolerance multiplier for Bedrock clients
     bedrock-multiplier: 1.25
 

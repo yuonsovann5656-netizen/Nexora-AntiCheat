@@ -53,6 +53,10 @@ public class PlayerData {
     // Movement per-tick state (used by SpeedCheck to distinguish jump-launch tick)
     private volatile boolean lastTickOnGround = true;
     private volatile int airTickCount = 0;
+    private volatile int groundTicks = 0;
+    private volatile double speedBuffer = 0.0;
+    private volatile long lastJumpTimestamp = 0L;
+    private volatile int sprintJumpTicks = 0;
 
     // Alert toggles (Staff)
     private boolean alertsEnabled = true;
@@ -314,6 +318,38 @@ public class PlayerData {
 
     public void setAirTickCount(int count) {
         this.airTickCount = count;
+    }
+
+    public int getGroundTicks() {
+        return groundTicks;
+    }
+
+    public void setGroundTicks(int groundTicks) {
+        this.groundTicks = groundTicks;
+    }
+
+    public double getSpeedBuffer() {
+        return speedBuffer;
+    }
+
+    public void setSpeedBuffer(double speedBuffer) {
+        this.speedBuffer = Math.max(0.0, speedBuffer);
+    }
+
+    public long getLastJumpTimestamp() {
+        return lastJumpTimestamp;
+    }
+
+    public void setLastJumpTimestamp(long lastJumpTimestamp) {
+        this.lastJumpTimestamp = lastJumpTimestamp;
+    }
+
+    public int getSprintJumpTicks() {
+        return sprintJumpTicks;
+    }
+
+    public void setSprintJumpTicks(int sprintJumpTicks) {
+        this.sprintJumpTicks = sprintJumpTicks;
     }
 
     public boolean areAlertsEnabled() {
