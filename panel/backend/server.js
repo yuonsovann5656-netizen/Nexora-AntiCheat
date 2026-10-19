@@ -406,7 +406,8 @@ app.post('/api/user/change-password', (req, res) => {
  */
 app.get('/api/plugins', (req, res) => {
   const data = readData();
-  res.json(data.plugins || []);
+  const cleanPlugins = (data.plugins || []).filter(p => p.id !== 'demo' && (p.name || '').toLowerCase() !== 'demo');
+  res.json(cleanPlugins);
 });
 
 /**
@@ -1007,8 +1008,13 @@ app.post('/api/admin/plugins', (req, res) => {
     return res.status(400).json({ error: 'Plugin ID and Name are required.' });
   }
 
+  const cleanId = id.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+  if (cleanId === 'demo' || (name && name.toLowerCase() === 'demo')) {
+    return res.status(400).json({ error: 'Demo products are disabled and cannot be saved.' });
+  }
+
   const data = readData();
-  data.plugins = data.plugins || [];
+  data.plugins = (data.plugins || []).filter(p => p.id !== 'demo' && (p.name || '').toLowerCase() !== 'demo');
 
   const parsedScreenshots = Array.isArray(screenshots)
     ? screenshots
@@ -1020,10 +1026,10 @@ app.post('/api/admin/plugins', (req, res) => {
     parsedScreenshots.unshift(bannerUrl);
   }
 
-  let plugin = data.plugins.find(p => p.id === id);
+  let plugin = data.plugins.find(p => p.id === cleanId || p.id === id);
   if (!plugin) {
     plugin = {
-      id: id.toLowerCase().replace(/[^a-z0-9_-]/g, '-'),
+      id: cleanId,
       name,
       tagline: tagline || '',
       description: description || '',
@@ -1032,12 +1038,12 @@ app.post('/api/admin/plugins', (req, res) => {
       category: category || 'General',
       tags: Array.isArray(tags) ? tags : ['Plugin'],
       icon: icon || '📦',
-      logoUrl: logoUrl || (id === 'bayon-anticheat' ? '/logo.png' : ''),
+      logoUrl: logoUrl || (cleanId === 'bayon-anticheat' ? '/logo.png' : ''),
       bannerUrl: bannerUrl || (parsedScreenshots[0] || ''),
       downloads: 0,
       rating: 5.0,
       jarFileName: `${name.replace(/\s+/g, '')}-${version || '1.0.0'}.jar`,
-      downloadUrl: `/api/plugins/${id}/download`,
+      downloadUrl: `/api/plugins/${cleanId}/download`,
       githubReleaseUrl: '',
       supportedVersions: '1.20 - 1.21.4',
       software: ['Paper', 'Purpur', 'Folia'],

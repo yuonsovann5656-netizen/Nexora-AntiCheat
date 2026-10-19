@@ -188,7 +188,7 @@ INSERT INTO bayon_users (
     'salt_nexora_admin_seed',
     'ADMIN',
     500.00,
-    '["bayon-anticheat","nexora-core-staff","nexora-combat-log","nexora-security-bundle"]',
+    '["bayon-anticheat","bayon-staff-suite","bayon-combat-log","bayon-security-bundle"]',
     TRUE,
     1730000000000
 ) ON CONFLICT (id) DO UPDATE SET role = 'ADMIN', email_verified = TRUE;
@@ -207,7 +207,7 @@ BEGIN
             'salt_nexora_admin_seed',
             'ADMIN',
             500.00,
-            '["bayon-anticheat","nexora-core-staff","nexora-combat-log","nexora-security-bundle"]',
+            '["bayon-anticheat","bayon-staff-suite","bayon-combat-log","bayon-security-bundle"]',
             TRUE,
             1730000000000
         ) ON CONFLICT (id) DO UPDATE SET role = 'ADMIN', email_verified = TRUE;
@@ -239,8 +239,8 @@ INSERT INTO nexora_plugins (
     'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80'
 ),
 (
-    'nexora-core-staff',
-    'Nexora Staff Suite & Core',
+    'bayon-staff-suite',
+    'Bayon Staff Suite & Core',
     'All-In-One Moderation, Freeze Screen & Inspection Utility',
     'Comprehensive staff utility suite providing interactive freeze GUIs, ghost vanish with packet manipulation, silent player inventory inspection, staff chat channels, and automated suspicious activity logs.',
     9.99,
@@ -250,17 +250,17 @@ INSERT INTO nexora_plugins (
     '⚡',
     870,
     4.9,
-    'NexoraStaffSuite-2.4.0.jar',
-    '/api/plugins/nexora-core-staff/download',
+    'BayonStaffSuite-2.4.0.jar',
+    '/api/plugins/bayon-staff-suite/download',
     '1.20 - 1.21.4',
     '["Paper","Purpur","Folia"]',
     '[{"version":"2.4.0","date":"October 10, 2026","title":"Packet Vanish Update","notes":["Packet entity destroy filter.","Staff notes system."]}]',
-    '',
+    '/logo.png',
     'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80'
 ),
 (
-    'nexora-combat-log',
-    'Nexora CombatLog & AntiQuit',
+    'bayon-combat-log',
+    'Bayon CombatLog & AntiQuit',
     'Combat Tagging & Combat Logout NPC Protection',
     'Prevents unfair PvP combat logging by keeping players tagged during combat, spawning a killable NPC proxy if they disconnect, and blocking commands or safezone teleports during fights.',
     4.99,
@@ -270,19 +270,19 @@ INSERT INTO nexora_plugins (
     '⚔️',
     650,
     4.8,
-    'NexoraCombatLog-1.3.0.jar',
-    '/api/plugins/nexora-combat-log/download',
+    'BayonCombatLog-1.3.0.jar',
+    '/api/plugins/bayon-combat-log/download',
     '1.20 - 1.21.4',
     '["Paper","Purpur","Folia"]',
     '[{"version":"1.3.0","date":"October 5, 2026","title":"Actionbar Countdown","notes":["Adventure Actionbar timer.","Configurable NPC health."]}]',
-    '',
+    '/logo.png',
     'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80'
 ),
 (
-    'nexora-security-bundle',
-    'Nexora Ultimate Security Bundle',
+    'bayon-security-bundle',
+    'Bayon Ultimate Security Bundle',
     'Complete Server Protection: AntiCheat + Staff Suite + ExploitGuard',
-    'Get the full suite of Nexora security plugins at a discount. Protect your server from hackers, combat loggers, server crash exploits, and book dupes with one comprehensive package.',
+    'Get the full suite of Bayon security plugins at a discount. Protect your server from hackers, combat loggers, server crash exploits, and book dupes with one comprehensive package.',
     29.99,
     '1.0.0',
     'Bundle',
@@ -290,8 +290,8 @@ INSERT INTO nexora_plugins (
     '👑',
     410,
     5.0,
-    'NexoraUltimateBundle-1.0.0.zip',
-    '/api/plugins/nexora-security-bundle/download',
+    'BayonUltimateBundle-1.0.0.zip',
+    '/api/plugins/bayon-security-bundle/download',
     '1.20 - 1.21.4',
     '["Paper","Purpur","Folia"]',
     '[{"version":"1.0.0","date":"October 16, 2026","title":"Complete 2026 Edition","notes":["Includes AntiCheat 1.0.0, Staff Suite 2.4.0, and CombatLog 1.3.0."]}]',
@@ -299,3 +299,6 @@ INSERT INTO nexora_plugins (
     'https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=800&q=80'
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- Permanently purge demo or test products
+DELETE FROM nexora_plugins WHERE id = 'demo' OR LOWER(name) = 'demo' OR LOWER(id) LIKE '%demo%';

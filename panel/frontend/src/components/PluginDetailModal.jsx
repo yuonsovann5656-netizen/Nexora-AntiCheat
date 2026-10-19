@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../apiConfig';
 import {
-  X, Star, Download, Camera, Check,
+  X, Star, Download, Check,
   AlertTriangle, Shield, Sword, Settings,
   Package, Plug, Share2, ThumbsUp, ExternalLink
 } from 'lucide-react';
@@ -61,16 +61,7 @@ export default function PluginDetailModal({
     }
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setReviewImage(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  // No file upload needed — users paste image URLs directly
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -436,35 +427,29 @@ export default function PluginDetailModal({
                   />
                 </div>
 
-                {/* Screenshot / Image Upload */}
+                {/* Screenshot / Image URL */}
                 <div style={{ marginBottom: '14px' }}>
-                  <label className="form-label">Attach Screenshot / Image (Optional)</label>
-                  <div className="image-upload-box">
-                    <input
-                      type="file"
-                      id="review-img-upload"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={handleImageUpload}
-                    />
-                    <label htmlFor="review-img-upload" style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <Camera size={15} />
-                      <span>{reviewImage ? 'Change Image Attachment' : 'Upload Proof / Telemetry / Game Screenshot'}</span>
-                    </label>
-                    {reviewImage && (
-                      <div className="image-preview-wrap" style={{ marginTop: '10px' }}>
-                        <img src={reviewImage} alt="Attachment" className="image-preview" />
-                        <button
-                          type="button"
-                          className="btn-remove-img"
-                          onClick={() => setReviewImage('')}
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <label className="form-label">Attach Screenshot URL (Optional)</label>
+                  <input
+                    className="input-field"
+                    placeholder="Paste an image link (e.g. imgur, Discord CDN)..."
+                    value={reviewImage}
+                    onChange={e => setReviewImage(e.target.value)}
+                  />
+                  {reviewImage && (
+                    <div className="image-preview-wrap" style={{ marginTop: '10px' }}>
+                      <img src={reviewImage} alt="Attachment" className="image-preview"
+                        onError={e => { e.target.style.display = 'none'; }} />
+                      <button
+                        type="button"
+                        className="btn-remove-img"
+                        onClick={() => setReviewImage('')}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <button

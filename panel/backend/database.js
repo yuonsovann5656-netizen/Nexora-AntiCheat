@@ -77,8 +77,8 @@ const defaultPlugins = [
     ]
   },
   {
-    id: 'nexora-core-staff',
-    name: 'Nexora Staff Suite & Core',
+    id: 'bayon-staff-suite',
+    name: 'Bayon Staff Suite & Core',
     tagline: 'All-In-One Moderation, Freeze Screen & Inspection Utility',
     description: 'Comprehensive staff utility suite providing interactive freeze GUIs, ghost vanish with packet manipulation, silent player inventory inspection, staff chat channels, and automated suspicious activity logs.',
     price: 9.99,
@@ -86,12 +86,12 @@ const defaultPlugins = [
     category: 'Administration',
     tags: ['Staff', 'Moderation', 'Freeze', 'Vanish', 'Admin'],
     icon: '⚡',
-    logoUrl: '',
+    logoUrl: '/logo.png',
     bannerUrl: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80',
     downloads: 870,
     rating: 4.9,
-    jarFileName: 'NexoraStaffSuite-2.4.0.jar',
-    downloadUrl: '/api/download/nexora-staff-suite.jar',
+    jarFileName: 'BayonStaffSuite-2.4.0.jar',
+    downloadUrl: '/api/download/bayon-staff-suite.jar',
     githubReleaseUrl: '',
     supportedVersions: '1.20 - 1.21.4',
     software: ['Paper', 'Purpur', 'Folia'],
@@ -111,8 +111,8 @@ const defaultPlugins = [
     ]
   },
   {
-    id: 'nexora-combat-log',
-    name: 'Nexora CombatLog & AntiQuit',
+    id: 'bayon-combat-log',
+    name: 'Bayon CombatLog & AntiQuit',
     tagline: 'Combat Tagging & Combat Logout NPC Protection',
     description: 'Prevents unfair PvP combat logging by keeping players tagged during combat, spawning a killable NPC proxy if they disconnect, and blocking commands or safezone teleports during fights.',
     price: 4.99,
@@ -120,12 +120,12 @@ const defaultPlugins = [
     category: 'Combat',
     tags: ['PvP', 'Combat', 'AntiQuit', 'NPC'],
     icon: '⚔️',
-    logoUrl: '',
+    logoUrl: '/logo.png',
     bannerUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80',
     downloads: 650,
     rating: 4.8,
-    jarFileName: 'NexoraCombatLog-1.3.0.jar',
-    downloadUrl: '/api/download/nexora-combat-log.jar',
+    jarFileName: 'BayonCombatLog-1.3.0.jar',
+    downloadUrl: '/api/download/bayon-combat-log.jar',
     githubReleaseUrl: '',
     supportedVersions: '1.20 - 1.21.4',
     software: ['Paper', 'Purpur', 'Folia'],
@@ -145,10 +145,10 @@ const defaultPlugins = [
     ]
   },
   {
-    id: 'nexora-security-bundle',
-    name: 'Nexora Ultimate Security Bundle',
+    id: 'bayon-security-bundle',
+    name: 'Bayon Ultimate Security Bundle',
     tagline: 'Complete Server Protection: AntiCheat + Staff Suite + ExploitGuard',
-    description: 'Get the full suite of Nexora security plugins at a discount. Protect your server from hackers, combat loggers, server crash exploits, and book dupes with one comprehensive package.',
+    description: 'Get the full suite of Bayon security plugins at a discount. Protect your server from hackers, combat loggers, server crash exploits, and book dupes with one comprehensive package.',
     price: 29.99,
     version: '1.0.0',
     category: 'Bundle',
@@ -158,8 +158,8 @@ const defaultPlugins = [
     bannerUrl: 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=800&q=80',
     downloads: 410,
     rating: 5.0,
-    jarFileName: 'NexoraUltimateBundle-1.0.0.zip',
-    downloadUrl: '/api/download/nexora-bundle.zip',
+    jarFileName: 'BayonUltimateBundle-1.0.0.zip',
+    downloadUrl: '/api/download/bayon-bundle.zip',
     githubReleaseUrl: '',
     supportedVersions: '1.20 - 1.21.4',
     software: ['Paper', 'Purpur', 'Folia'],
@@ -200,7 +200,7 @@ const defaultReviews = [
   },
   {
     id: 'rev_3',
-    pluginId: 'nexora-core-staff',
+    pluginId: 'bayon-staff-suite',
     username: 'PvPKingdomStaff',
     rating: 5,
     comment: 'The freeze GUI caught 4 x-rayers and closet cheaters in our first hour of running it. Highly recommended staff utility.',
@@ -218,7 +218,7 @@ const defaultDeposits = [
     username: 'admin',
     amount: 50.00,
     currency: 'USD',
-    khqrRef: 'NXR-DEP-849102',
+    khqrRef: 'BYN-DEP-849102',
     paymentMethod: 'KHQR (Bakong Cambodia)',
     receiptImage: '',
     status: 'APPROVED',
@@ -229,18 +229,18 @@ const defaultDeposits = [
 
 // Clean default state with pre-seeded Admin account and store catalog
 const defaultState = {
-  adminSecret: process.env.ADMIN_SECRET || 'nexora_admin_2026',
+  adminSecret: process.env.ADMIN_SECRET || 'bayon_admin_2026',
   users: [
     {
       id: 'usr_admin',
       username: 'admin',
-      email: 'admin@nexora.dev',
+      email: 'admin@bayon.dev',
       passwordHash: defaultAdminCreds.hash,
       salt: defaultAdminCreds.salt,
       role: 'ADMIN',
       balance: 100.00,
       emailVerified: true,
-      purchasedPlugins: ['nexora-anticheat', 'nexora-core-staff', 'nexora-combat-log', 'nexora-security-bundle'],
+      purchasedPlugins: ['bayon-anticheat', 'bayon-staff-suite', 'bayon-combat-log', 'bayon-security-bundle'],
       createdAt: Date.now(),
       lastLogin: null
     }
@@ -519,7 +519,7 @@ async function loadFromPostgres() {
         changelogs: JSON.parse(r.changelogs || '[]'),
         logoUrl: r.logo_url || (r.id === 'bayon-anticheat' ? '/logo.png' : ''),
         bannerUrl: r.banner_url || (r.screenshots ? (JSON.parse(r.screenshots || '[]')[0] || '') : '')
-      }));
+      })).filter(p => p.id !== 'demo' && (p.name || '').toLowerCase() !== 'demo');
     } else {
       store.plugins = defaultPlugins;
     }
@@ -614,6 +614,9 @@ function readData() {
       memoryStore = JSON.parse(JSON.stringify(defaultState));
     }
   }
+  if (memoryStore && Array.isArray(memoryStore.plugins)) {
+    memoryStore.plugins = memoryStore.plugins.filter(p => p.id !== 'demo' && (p.name || '').toLowerCase() !== 'demo');
+  }
   return memoryStore;
 }
 
@@ -705,6 +708,10 @@ async function syncToPostgres(data) {
     }
 
     // Sync plugins
+    try {
+      await client.query(`DELETE FROM nexora_plugins WHERE id = 'demo' OR LOWER(name) = 'demo'`);
+    } catch {}
+
     const validPluginIds = (data.plugins || []).map(p => p.id);
     if (validPluginIds.length > 0) {
       const placeholders = validPluginIds.map((_, i) => `$${i + 1}`).join(',');

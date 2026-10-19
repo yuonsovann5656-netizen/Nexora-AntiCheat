@@ -386,41 +386,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginTop: '4px' }}>
                   {pendingEmail || email}
                 </div>
-
-                {issuedCode && (
-                  <div style={{
-                    marginTop: '12px',
-                    padding: '8px 12px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px dashed #333',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}>
-                    <span style={{ color: '#8892a4' }}>Dev Code:</span>
-                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '2px' }}>
-                      {issuedCode}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setVerificationCode(issuedCode)}
-                      style={{
-                        background: '#fff',
-                        color: '#000',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '3px 8px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Fill
-                    </button>
-                  </div>
-                )}
               </div>
 
               <div style={{ marginBottom: '20px' }}>

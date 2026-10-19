@@ -122,7 +122,7 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/plugins`);
       const data = await res.json();
       if (Array.isArray(data)) {
-        setPlugins(data);
+        setPlugins(data.filter(p => p.id !== 'demo' && (p.name || '').toLowerCase() !== 'demo'));
       }
     } catch (err) {
       console.error('Failed to load plugins:', err);

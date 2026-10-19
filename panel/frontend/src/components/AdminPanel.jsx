@@ -123,43 +123,71 @@ export default function AdminPanel({
     }
   };
 
+  const slugify = (text) => {
+    return (text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+  };
+
   const handleCreatePlugin = async (e) => {
     e.preventDefault();
-    if (!newPluginId || !newPluginName) {
-      setAlertMsg({ type: 'error', text: 'ID and Name are required.' });
+    const finalId = (newPluginId || slugify(newPluginName)).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    const finalName = newPluginName.trim();
+    if (!finalId || !finalName) {
+      setAlertMsg({ type: 'error', text: 'Product Display Name is required.' });
       return;
     }
 
     try {
+      const payload = {
+        id: finalId,
+        name: finalName,
+        price: Number(newPluginPrice) || 0,
+        tagline: newPluginTagline.trim(),
+        description: newPluginDesc.trim(),
+        version: newPluginVersion.trim() || '1.0.0',
+        category: newPluginCategory,
+        logoUrl: newPluginLogo.trim(),
+        bannerUrl: newPluginBanner.trim(),
+        screenshots: newPluginBanner.trim() ? [newPluginBanner.trim()] : []
+      };
+
       const res = await fetch(`${API_BASE}/api/admin/plugins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: newPluginId,
-          name: newPluginName,
-          price: Number(newPluginPrice),
-          tagline: newPluginTagline,
-          description: newPluginDesc,
-          version: newPluginVersion,
-          category: newPluginCategory,
-          logoUrl: newPluginLogo,
-          bannerUrl: newPluginBanner
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
-      if (data.success) {
-        setAlertMsg({ type: 'success', text: `Plugin "${newPluginName}" saved successfully!` });
+      if (res.ok && data.success && data.plugin) {
+        setAlertMsg({ type: 'success', text: `Product "${data.plugin.name}" (${data.plugin.id}) saved and updated in catalog!` });
+        
+        // Immediately update local admin table so user sees changes with ZERO delay
+        setPlugins(prev => {
+          const exists = prev.some(p => p.id === data.plugin.id);
+          if (exists) {
+            return prev.map(p => p.id === data.plugin.id ? data.plugin : p);
+          }
+          return [data.plugin, ...prev];
+        });
+
+        // Clear form
         setNewPluginId('');
         setNewPluginName('');
         setNewPluginTagline('');
         setNewPluginDesc('');
         setNewPluginLogo('');
         setNewPluginBanner('');
+        setNewPluginPrice(9.99);
+
+        // Re-fetch all data and notify store
         fetchAdminData();
         if (onRefreshStore) onRefreshStore();
+      } else {
+        setAlertMsg({ type: 'error', text: data.error || 'Failed to save product.' });
       }
     } catch {
-      setAlertMsg({ type: 'error', text: 'Failed to save plugin.' });
+      setAlertMsg({ type: 'error', text: 'Network error saving product.' });
     }
   };
 
@@ -895,21 +923,28 @@ export default function AdminPanel({
               <form onSubmit={handleCreatePlugin}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
                   <div>
-                    <label className="form-label">Plugin ID (slug)</label>
+                    <label className="form-label">Display Name *</label>
+                    <input
+                      className="input-field"
+                      placeholder="e.g. Bayon Dupe Fixer"
+                      value={newPluginName}
+                      onChange={e => {
+                        const nameVal = e.target.value;
+                        setNewPluginName(nameVal);
+                        if (!newPluginId || newPluginId === slugify(newPluginName)) {
+                          setNewPluginId(slugify(nameVal));
+                        }
+                      }}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Product ID / Slug (Auto-generated)</label>
                     <input
                       className="input-field mono"
                       placeholder="e.g. bayon-dupe-fixer"
                       value={newPluginId}
                       onChange={e => setNewPluginId(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label">Display Name</label>
-                    <input
-                      className="input-field"
-                      placeholder="e.g. Bayon Dupe Fixer"
-                      value={newPluginName}
-                      onChange={e => setNewPluginName(e.target.value)}
                     />
                   </div>
                   <div>
@@ -945,24 +980,104 @@ export default function AdminPanel({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '14px' }}>
+                  {/* Logo URL with 1-click presets and instant preview */}
                   <div>
-                    <label className="form-label">Plugin Logo URL</label>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ marginBottom: 0 }}>Plugin Logo URL (No file upload needed)</label>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{ fontSize: '10px', padding: '2px 6px', border: '1px solid var(--border-bright)', borderRadius: '4px' }}
+                          onClick={() => setNewPluginLogo('/logo.png')}
+                        >
+                          Bayon Logo
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{ fontSize: '10px', padding: '2px 6px', border: '1px solid var(--border-bright)', borderRadius: '4px' }}
+                          onClick={() => setNewPluginLogo('')}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
                     <input
                       className="input-field"
-                      placeholder="e.g. /logo.png or https://.../icon.png"
+                      placeholder="Paste image link, /logo.png, or click preset..."
                       value={newPluginLogo}
                       onChange={e => setNewPluginLogo(e.target.value)}
                     />
+                    {newPluginLogo && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
+                        <img
+                          src={newPluginLogo}
+                          alt="Logo Preview"
+                          style={{ width: '36px', height: '36px', objectFit: 'contain', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', border: '1px solid var(--border-bright)', padding: '2px' }}
+                          onError={e => { e.target.style.display = 'none'; }}
+                        />
+                        <span style={{ fontSize: '11px', color: '#00e599' }}>✓ Logo preview loaded</span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Banner Preview URL with 1-click presets and instant preview */}
                   <div>
-                    <label className="form-label">Detail / Banner Preview Image URL</label>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ marginBottom: 0 }}>Banner / Preview Image URL (No file upload needed)</label>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{ fontSize: '10px', padding: '2px 6px', border: '1px solid var(--border-bright)', borderRadius: '4px' }}
+                          onClick={() => setNewPluginBanner('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80')}
+                        >
+                          Cyber
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{ fontSize: '10px', padding: '2px 6px', border: '1px solid var(--border-bright)', borderRadius: '4px' }}
+                          onClick={() => setNewPluginBanner('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80')}
+                        >
+                          Staff
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{ fontSize: '10px', padding: '2px 6px', border: '1px solid var(--border-bright)', borderRadius: '4px' }}
+                          onClick={() => setNewPluginBanner('https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80')}
+                        >
+                          PvP
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{ fontSize: '10px', padding: '2px 6px', border: '1px solid var(--border-bright)', borderRadius: '4px' }}
+                          onClick={() => setNewPluginBanner('https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=800&q=80')}
+                        >
+                          Bundle
+                        </button>
+                      </div>
+                    </div>
                     <input
                       className="input-field"
-                      placeholder="e.g. https://images.unsplash.com/... (shown on card & detail)"
+                      placeholder="Paste image link or choose preset above..."
                       value={newPluginBanner}
                       onChange={e => setNewPluginBanner(e.target.value)}
                     />
+                    {newPluginBanner && (
+                      <div style={{ marginTop: '6px' }}>
+                        <img
+                          src={newPluginBanner}
+                          alt="Banner Preview"
+                          style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-bright)' }}
+                          onError={e => { e.target.style.display = 'none'; }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../apiConfig';
 import {
-  ArrowLeft, Star, Download, Camera, Check,
+  ArrowLeft, Star, Download, Check,
   AlertTriangle, Shield, Sword, Settings,
   Package, Plug, Share2, ThumbsUp, X, CheckCircle,
   ExternalLink, Layers, Terminal, Sparkles
@@ -87,16 +87,7 @@ export default function PluginDetailPage({
     }
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setReviewImage(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  // No file upload — users paste image URLs directly
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -565,15 +556,17 @@ export default function PluginDetailPage({
                 </div>
 
                 <div style={{ marginBottom: '16px' }}>
-                  <label className="form-label">Attach Proof / Screenshot (Optional)</label>
-                  <input type="file" id="page-review-img" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
-                  <label htmlFor="page-review-img" style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Camera size={14} />
-                    <span>{reviewImage ? 'Change Image' : 'Upload Game Screenshot'}</span>
-                  </label>
+                  <label className="form-label">Attach Screenshot URL (Optional)</label>
+                  <input
+                    className="input-field"
+                    placeholder="Paste an image link (e.g. imgur, Discord CDN)..."
+                    value={reviewImage}
+                    onChange={e => setReviewImage(e.target.value)}
+                  />
                   {reviewImage && (
                     <div style={{ marginTop: '10px', position: 'relative', display: 'inline-block' }}>
-                      <img src={reviewImage} alt="Attachment" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '6px' }} />
+                      <img src={reviewImage} alt="Attachment" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '6px' }}
+                        onError={e => { e.target.style.display = 'none'; }} />
                       <button type="button" onClick={() => setReviewImage('')} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.8)', border: 'none', color: '#fff', borderRadius: '50%', padding: '2px', cursor: 'pointer' }}>
                         <X size={12} />
                       </button>
