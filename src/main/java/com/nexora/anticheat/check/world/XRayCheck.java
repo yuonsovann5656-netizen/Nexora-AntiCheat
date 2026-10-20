@@ -4,7 +4,8 @@ import com.nexora.anticheat.NexoraPlugin;
 import com.nexora.anticheat.check.Check;
 import com.nexora.anticheat.check.CheckCategory;
 import com.nexora.anticheat.data.PlayerData;
-import com.nexora.anticheat.punishment.PunishmentType;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -23,16 +24,19 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Detects and prevents X-Ray / FreeCam / Ore ESP cheats.
- * Rather than abruptly kicking players, this check blocks the suspicious ore from being harvested,
- * either by canceling the break or replacing the ore with surrounding stone.
+ * Detects and actively blocks X-Ray, FreeCam, and Ore ESP cheats.
+ *
+ * <p>Uses face density analysis: buried ores surrounded by 4 or more solid stone/deepslate
+ * faces are identified even after a player breaks the single block touching them.
+ * When suspicious X-Ray mining is detected, the ore block break is canceled, dropped items
+ * are blocked, and the block is reverted to surrounding stone/deepslate.
  */
 public class XRayCheck extends Check {
 
     private boolean blockOre = true;
     private boolean replaceWithStone = true;
-    private int minStoneBetweenOres = 12;
-    private int maxHiddenOreStreak = 3;
+    private int minStoneBetweenOres = 8;
+    private int maxHiddenOreStreak = 2;
 
     private static final Set<Material> VALUABLE_ORES = Set.of(
             Material.DIAMOND_ORE,
@@ -54,7 +58,9 @@ public class XRayCheck extends Check {
             Material.DIORITE,
             Material.GRANITE,
             Material.BLACKSTONE,
-            Material.BASALT
+            Material.BASALT,
+            Material.DIRT,
+            Material.GRAVEL
     );
 
     private static final BlockFace[] ADJACENT_FACES = {
@@ -73,8 +79,8 @@ public class XRayCheck extends Check {
     protected void loadCustomConfig(@NotNull FileConfiguration config, @NotNull String path) {
         this.blockOre = config.getBoolean(path + ".block-ore", true);
         this.replaceWithStone = config.getBoolean(path + ".replace-with-stone", true);
-        this.minStoneBetweenOres = config.getInt(path + ".min-stone-between-ores", 12);
-        this.maxHiddenOreStreak = config.getInt(path + ".max-hidden-ore-streak", 3);
+        this.minStoneBetweenOres = config.getInt(path + ".min-stone-between-ores", 8);
+        this.maxHiddenOreStreak = config.getInt(path + ".max-hidden-ore-streak", 2);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -89,78 +95,102 @@ public class XRayCheck extends Check {
         Material mat = block.getType();
         UUID uuid = player.getUniqueId();
 
-        // Count stone and filler mining
+        // Count stone/filler mining progress
         if (FILLER_BLOCKS.contains(mat)) {
-            stoneMinedSinceLastOre.compute(uuid, (k, v) -> v == null ? 1 : v + 1);
+            stoneMinedSinceLastOre.compute(uuid, (k, v) -> (v == null ? 0 : v) + 1);
+            data.incrementStoneMined();
             return;
         }
 
-        // Only analyze high-value target ores
+        // Only monitor valuable targeted ores
         if (!VALUABLE_ORES.contains(mat)) {
             return;
         }
 
-        int stoneCount = stoneMinedSinceLastOre.getOrDefault(uuid, 0);
-        boolean isHiddenOre = isOreBuried(block);
+        int solidFaces = countSolidSurroundingFaces(block);
+        // An ore with 4 or more solid faces is buried in rock (even if 1 face was just dug by player)
+        boolean isBuriedOre = solidFaces >= 4;
 
+        int stoneCount = stoneMinedSinceLastOre.getOrDefault(uuid, 0);
         int streak = hiddenOreStreak.getOrDefault(uuid, 0);
-        if (isHiddenOre) {
+
+        if (isBuriedOre) {
             streak++;
             hiddenOreStreak.put(uuid, streak);
+            data.setBuriedOreStreak(streak);
         } else {
-            // Ore was naturally exposed to air/cave, reduce suspicion
-            hiddenOreStreak.put(uuid, Math.max(0, streak - 1));
+            // Naturally exposed to open cave air (>= 3 open faces)
+            streak = Math.max(0, streak - 1);
+            hiddenOreStreak.put(uuid, streak);
+            data.setBuriedOreStreak(streak);
         }
 
-        // Suspicious: mining hidden ores in succession without mining standard stone/deepslate tunnels
-        if (isHiddenOre && (streak >= maxHiddenOreStreak || stoneCount < minStoneBetweenOres)) {
-            String details = String.format("Mined buried %s (Stone mined: %d, Hidden streak: %d)",
-                    mat.name().toLowerCase(), stoneCount, streak);
+        // Detect X-Ray: tunneling straight into buried ores with insufficient natural tunneling
+        boolean suspiciousXray = isBuriedOre && (streak >= maxHiddenOreStreak || stoneCount < minStoneBetweenOres);
 
-            // Flag violation
-            flag(player, data, details, 1.5);
+        if (suspiciousXray) {
+            String details = String.format("Mined buried %s (Buried: %d/6 solid, Stone tunnel: %d, Streak: %d)",
+                    mat.name().toLowerCase(), solidFaces, stoneCount, streak);
 
-            // Reset counter
+            // Flag anti-cheat violation
+            flag(player, data, details, 2.0);
+
+            // Reset stone counter
             stoneMinedSinceLastOre.put(uuid, 0);
 
-            // Block the ore exploitation without kicking
+            // Actively block the X-Ray exploitation
             if (blockOre) {
                 event.setCancelled(true);
+                event.setDropItems(false);
 
                 if (replaceWithStone) {
-                    Material replacement = mat.name().contains("DEEPSLATE") ? Material.DEEPSLATE
+                    Material replacement = mat.name().contains("DEEPSLATE") || block.getY() < 0 ? Material.DEEPSLATE
                             : (mat == Material.ANCIENT_DEBRIS || mat == Material.NETHER_GOLD_ORE) ? Material.NETHERRACK
                             : Material.STONE;
                     block.setType(replacement, false);
                 }
 
-                // Visual and audio feedback
-                player.getWorld().spawnParticle(Particle.SMOKE, block.getLocation().add(0.5, 0.5, 0.5), 8, 0.2, 0.2, 0.2, 0.01);
-                player.playSound(block.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 0.7F, 1.2F);
+                // Audio & visual crumbling effect
+                player.getWorld().spawnParticle(Particle.SMOKE, block.getLocation().add(0.5, 0.5, 0.5), 10, 0.25, 0.25, 0.25, 0.02);
+                player.playSound(block.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 0.8F, 1.2F);
 
                 player.sendMessage(plugin.getConfigManager().getMessages().getComponent(
                         "punish.xray-blocked",
                         "<prefix><red>This ore crumbled away as you touched it...</red>",
                         Map.of("player", player.getName(), "ore", mat.name().toLowerCase())
                 ));
+
+                // Alert online staff members
+                String staffAlert = String.format(
+                        "<#FF0000>[Bayon AntiCheat]</#FF0000> <red>Blocked X-Ray ore break from <yellow>%s</yellow> (<white>%s</white>, Solid: %d/6, Tunnel: %d blk)</red>",
+                        player.getName(), mat.name().toLowerCase(), solidFaces, stoneCount
+                );
+                for (Player staff : Bukkit.getOnlinePlayers()) {
+                    if (staff.hasPermission("nexora.alerts")) {
+                        staff.sendMessage(MiniMessage.miniMessage().deserialize(staffAlert));
+                    }
+                }
             }
         } else {
             // Legitimate mining find
             stoneMinedSinceLastOre.put(uuid, 0);
+            data.incrementValuableOresMined();
         }
     }
 
     /**
-     * Checks if an ore block is buried inside rock with 0 exposed air/liquid surfaces.
+     * Counts how many of the 6 surrounding adjacent faces are solid opaque blocks.
+     * Buried ores typically have 4, 5, or 6 solid faces.
      */
-    private boolean isOreBuried(Block block) {
+    private int countSolidSurroundingFaces(Block block) {
+        int solidCount = 0;
         for (BlockFace face : ADJACENT_FACES) {
             Block relative = block.getRelative(face);
             Material type = relative.getType();
-            if (type.isAir() || type == Material.CAVE_AIR || type == Material.VOID_AIR || type == Material.WATER) {
-                return false;
+            if (type.isSolid() && !type.isAir()) {
+                solidCount++;
             }
         }
-        return true;
+        return solidCount;
     }
 }

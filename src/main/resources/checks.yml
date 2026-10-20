@@ -249,3 +249,14 @@ player:
     setback: false
     punishment: "KICK"
 
+  multikeybinds:
+    enabled: true
+    max-vl: 6
+    vl-decay: 1.0
+    setback: true
+    punishment: "KICK"
+    max-actions-per-tick: 2
+    max-slot-swaps-per-window: 4
+    slot-window-ms: 100
+
+

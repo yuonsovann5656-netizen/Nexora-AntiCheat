@@ -302,7 +302,10 @@ public class NexoraCommand {
 
         // /nxanti gui
         root.then(Commands.literal("gui")
-                .requires(source -> source.getSender().hasPermission("nexora.command.gui"))
+                .requires(source -> source.getSender().hasPermission("nexora.command.gui")
+                        || source.getSender().hasPermission("bayon.admin")
+                        || source.getSender().hasPermission("nexora.admin")
+                        || source.getSender().isOp())
                 .executes(ctx -> {
                     CommandSender sender = ctx.getSource().getSender();
                     if (sender instanceof Player player) {
@@ -399,8 +402,8 @@ public class NexoraCommand {
                             return 1;
                         })));
 
-        // Register main command with aliases /bayon, /bayonanti, /nexora and /nxac
-        commands.register(root.build(), "Bayon AntiCheat main administration command", List.of("bayon", "bayonanti", "nexora", "nxac"));
+        // Register main command with aliases /bayon, /byon, /ac, /bac, /bayonanti, /nexora and /nxac
+        commands.register(root.build(), "Bayon AntiCheat main administration command", List.of("bayon", "byon", "ac", "bac", "bayonanti", "nexora", "nxac"));
     }
 
     private void sendHelp(CommandSender sender) {

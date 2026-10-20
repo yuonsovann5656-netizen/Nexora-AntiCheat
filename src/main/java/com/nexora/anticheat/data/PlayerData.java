@@ -61,6 +61,24 @@ public class PlayerData {
     // Alert toggles (Staff)
     private boolean alertsEnabled = true;
 
+    // Client Identification & Mod Loader Tracking
+    private volatile String detailedClientType = "Vanilla";
+    private volatile boolean hackedClient = false;
+    private volatile String hackedClientName = null;
+    private final Set<String> registeredChannels = ConcurrentHashMap.newKeySet();
+
+    // MultiKeybind / Macro Exploit Tracking
+    private volatile long lastActionTimestamp = 0L;
+    private volatile int actionsThisTick = 0;
+    private volatile int lastActionTick = 0;
+    private volatile long lastSlotSwapTimestamp = 0L;
+    private volatile int slotSwapsInWindow = 0;
+
+    // X-Ray Behavioral Tracking
+    private volatile int totalStoneMined = 0;
+    private volatile int totalValuableOresMined = 0;
+    private volatile int buriedOreStreak = 0;
+
     public PlayerData(@NotNull UUID uniqueId, @NotNull String username) {
         this.uniqueId = uniqueId;
         this.username = username;
@@ -358,5 +376,107 @@ public class PlayerData {
 
     public void setAlertsEnabled(boolean alertsEnabled) {
         this.alertsEnabled = alertsEnabled;
+    }
+
+    public String getDetailedClientType() {
+        return detailedClientType;
+    }
+
+    public void setDetailedClientType(String detailedClientType) {
+        this.detailedClientType = detailedClientType;
+    }
+
+    public boolean isHackedClient() {
+        return hackedClient;
+    }
+
+    public void setHackedClient(boolean hackedClient) {
+        this.hackedClient = hackedClient;
+    }
+
+    public String getHackedClientName() {
+        return hackedClientName;
+    }
+
+    public void setHackedClientName(String hackedClientName) {
+        this.hackedClientName = hackedClientName;
+    }
+
+    public Set<String> getRegisteredChannels() {
+        return registeredChannels;
+    }
+
+    public void addRegisteredChannel(String channel) {
+        if (channel != null && !channel.isBlank()) {
+            this.registeredChannels.add(channel.toLowerCase());
+        }
+    }
+
+    public long getLastActionTimestamp() {
+        return lastActionTimestamp;
+    }
+
+    public void setLastActionTimestamp(long lastActionTimestamp) {
+        this.lastActionTimestamp = lastActionTimestamp;
+    }
+
+    public int getActionsThisTick() {
+        return actionsThisTick;
+    }
+
+    public void setActionsThisTick(int actionsThisTick) {
+        this.actionsThisTick = actionsThisTick;
+    }
+
+    public int getLastActionTick() {
+        return lastActionTick;
+    }
+
+    public void setLastActionTick(int lastActionTick) {
+        this.lastActionTick = lastActionTick;
+    }
+
+    public long getLastSlotSwapTimestamp() {
+        return lastSlotSwapTimestamp;
+    }
+
+    public void setLastSlotSwapTimestamp(long lastSlotSwapTimestamp) {
+        this.lastSlotSwapTimestamp = lastSlotSwapTimestamp;
+    }
+
+    public int getSlotSwapsInWindow() {
+        return slotSwapsInWindow;
+    }
+
+    public void setSlotSwapsInWindow(int slotSwapsInWindow) {
+        this.slotSwapsInWindow = slotSwapsInWindow;
+    }
+
+    public int getTotalStoneMined() {
+        return totalStoneMined;
+    }
+
+    public void incrementStoneMined() {
+        this.totalStoneMined++;
+    }
+
+    public void resetStoneMined() {
+        this.totalStoneMined = 0;
+    }
+
+    public int getTotalValuableOresMined() {
+        return totalValuableOresMined;
+    }
+
+    public void incrementValuableOresMined() {
+        this.totalValuableOresMined++;
+    }
+
+    public int getBuriedOreStreak() {
+        return buriedOreStreak;
+    }
+
+    public void setBuriedOreStreak(int buriedOreStreak) {
+        this.buriedOreStreak = buriedOreStreak;
     }
 }

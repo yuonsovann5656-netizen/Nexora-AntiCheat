@@ -61,6 +61,7 @@ public class CheckManager {
         register(new FastEatCheck(plugin));
         register(new ExploitCheck(plugin));
         register(new ClientBrandCheck(plugin));
+        register(new MacroKeybindCheck(plugin));
 
         // Register check listeners with Bukkit
         for (Check check : checkMap.values()) {
