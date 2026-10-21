@@ -66,6 +66,7 @@ public class PlayerData {
     private volatile boolean hackedClient = false;
     private volatile String hackedClientName = null;
     private final Set<String> registeredChannels = ConcurrentHashMap.newKeySet();
+    private final Set<String> detectedBannedMods = ConcurrentHashMap.newKeySet();
 
     // MultiKeybind / Macro Exploit Tracking
     private volatile long lastActionTimestamp = 0L;
@@ -478,5 +479,15 @@ public class PlayerData {
 
     public void setBuriedOreStreak(int buriedOreStreak) {
         this.buriedOreStreak = buriedOreStreak;
+    }
+
+    public Set<String> getDetectedBannedMods() {
+        return detectedBannedMods;
+    }
+
+    public void addDetectedBannedMod(String mod) {
+        if (mod != null && !mod.isBlank()) {
+            this.detectedBannedMods.add(mod.toLowerCase());
+        }
     }
 }

@@ -24,7 +24,7 @@ import java.util.logging.Logger;
  */
 public final class BedrockUtil {
 
-    private static final Logger LOG = Logger.getLogger("NexoraAC");
+    private static final Logger LOG = Logger.getLogger("BayonAC");
 
     /** Floodgate class name — loaded reflectively so the plugin starts without Floodgate. */
     private static final String FLOODGATE_API_CLASS = "org.geysermc.floodgate.api.FloodgateApi";
@@ -50,13 +50,13 @@ public final class BedrockUtil {
         try {
             Class.forName(FLOODGATE_API_CLASS);
             floodgatePresent = true;
-            LOG.info("[NexoraAC] Floodgate detected — Bedrock player detection via Floodgate API enabled.");
+            LOG.info("[BayonAC] Floodgate detected — Bedrock player detection via Floodgate API enabled.");
         } catch (ClassNotFoundException e) {
             if (!bedrockPrefix.isEmpty()) {
-                LOG.info("[NexoraAC] Floodgate not found — using name prefix \"" + bedrockPrefix
+                LOG.info("[BayonAC] Floodgate not found — using name prefix \"" + bedrockPrefix
                         + "\" + permission fallback for Bedrock detection.");
             } else {
-                LOG.info("[NexoraAC] Floodgate not found and bedrock-prefix is empty — Bedrock bypass disabled.");
+                LOG.info("[BayonAC] Floodgate not found and bedrock-prefix is empty — Bedrock bypass disabled.");
             }
         }
     }

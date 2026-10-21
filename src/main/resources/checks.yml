@@ -1,5 +1,5 @@
 # ==========================================================
-#              NEXORA ANTICHEAT - CHECKS CONFIG
+#              BAYON ANTICHEAT - CHECKS CONFIG
 # ==========================================================
 
 movement:
@@ -258,5 +258,33 @@ player:
     max-actions-per-tick: 2
     max-slot-swaps-per-window: 4
     slot-window-ms: 100
+    # Active PVP Mod Scanner: inspects client channels and mod handshakes
+    scan-banned-mods: true
+    # Forbidden mods on competitive PVP servers
+    banned-pvp-mods:
+      - "multikeybinds"
+      - "multikeybind"
+      - "macrokeybind"
+      - "macros"
+      - "autoclicker"
+      - "autototem"
+      - "fastswap"
+      - "totem"
+      - "freecam"
+      - "mcfreecam"
+      - "itemscroller"
+      - "tweakeroo"
+      - "schematica"
+      - "litematica"
+      - "baritone"
+      - "betterpvp"
+      - "voxelmap"
+      - "xaerominimap"
+      - "xaeroworldmap"
+      - "journeymap"
+      - "minihud"
+      - "mousetweaks"
+      - "rebind"
+
 
 

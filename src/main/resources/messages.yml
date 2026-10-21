@@ -8,7 +8,7 @@ prefix: "<#FF0000><bold>Bayon</bold></#FF0000> <dark_gray>»</dark_gray> "
 general:
   no-permission: "<prefix><red>You do not have permission to execute this command.</red>"
   player-not-found: "<prefix><red>Player <yellow><player></yellow> was not found online.</red>"
-  invalid-syntax: "<prefix><red>Invalid syntax. Type <yellow>/nxanti help</yellow> for help.</red>"
+  invalid-syntax: "<prefix><red>Invalid syntax. Type <yellow>/byac help</yellow> for help.</red>"
   reload-success: "<prefix><green>Configuration, checks, and messages reloaded successfully in <yellow><ms>ms</yellow>!</green>"
   reload-failed: "<prefix><red>Failed to reload configuration: <error></red>"
 

@@ -86,6 +86,16 @@ public class StaffGuiManager implements Listener {
                 lore.add(MiniMessage.miniMessage().deserialize(String.format("<gray>CPS:</gray> <aqua>%.1f</aqua>", data.getCps())));
                 lore.add(MiniMessage.miniMessage().deserialize(String.format("<gray>Total VL:</gray> %s%.1f</color>", totalVl > 0 ? "<red>" : "<yellow>", totalVl)));
 
+                // PVP Mod Scanner Detection
+                if (!data.getDetectedBannedMods().isEmpty()) {
+                    lore.add(MiniMessage.miniMessage().deserialize("<dark_red><bold>❌ BANNED PVP MODS:</bold></dark_red>"));
+                    for (String mod : data.getDetectedBannedMods()) {
+                        lore.add(MiniMessage.miniMessage().deserialize(" <red>• " + mod + "</red>"));
+                    }
+                } else {
+                    lore.add(MiniMessage.miniMessage().deserialize("<gray>PVP Mods:</gray> <green>Clean ✓</green>"));
+                }
+
                 if (data.isHackedClient()) {
                     lore.add(Component.empty());
                     lore.add(MiniMessage.miniMessage().deserialize("<dark_red><bold>⚠️ BLACKLISTED CLIENT DETECTED</bold></dark_red>"));

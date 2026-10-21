@@ -128,15 +128,15 @@ public class DiscordWebhookSender {
                 embed.add("fields", fields);
 
                 JsonObject footer = new JsonObject();
-                footer.addProperty("text", "Nexora AntiCheat Security Engine • Paper 26.2");
+                footer.addProperty("text", "Bayon AntiCheat Security Engine • Paper 26.2");
                 embed.add("footer", footer);
 
                 JsonArray embeds = new JsonArray();
                 embeds.add(embed);
 
                 JsonObject payload = new JsonObject();
-                payload.addProperty("username", "Nexora Security");
-                payload.addProperty("avatar_url", "https://mc-heads.net/avatar/Nexora/64");
+                payload.addProperty("username", "Bayon Security");
+                payload.addProperty("avatar_url", "https://mc-heads.net/avatar/Bayon/64");
                 payload.add("embeds", embeds);
 
                 HttpRequest request = HttpRequest.newBuilder()
@@ -214,7 +214,7 @@ public class DiscordWebhookSender {
                 embeds.add(embed);
 
                 JsonObject payload = new JsonObject();
-                payload.addProperty("username", "Nexora Security");
+                payload.addProperty("username", "Bayon Security");
                 payload.add("embeds", embeds);
 
                 HttpRequest request = HttpRequest.newBuilder()

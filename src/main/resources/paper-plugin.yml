@@ -13,51 +13,92 @@ permissions:
     default: op
     children:
       bayon.alerts: true
+      bayon.bypass: false
+      bayon.command.help: true
+      bayon.command.reload: true
+      bayon.command.info: true
+      bayon.command.history: true
+      bayon.command.reset: true
+      bayon.command.punish: true
+      bayon.command.exempt: true
+      bayon.command.gui: true
+      bayon.command.debug: true
+      bayon.command.scan: true
       nexora.admin: true
-  nexora.admin:
-    description: Full administrative access to Bayon AntiCheat (legacy alias)
-    default: op
-    children:
-      nexora.alerts: true
-      nexora.command.help: true
-      nexora.command.reload: true
-      nexora.command.info: true
-      nexora.command.history: true
-      nexora.command.reset: true
-      nexora.command.punish: true
-      nexora.command.exempt: true
-      nexora.command.gui: true
-      nexora.command.debug: true
-  nexora.alerts:
+
+  bayon.alerts:
     description: Allows staff members to receive in-game cheat violation alerts
     default: op
-  nexora.bypass:
-    description: Bypasses all Nexora anti-cheat detections
+
+  bayon.bypass:
+    description: Bypasses all Bayon anti-cheat detections
     default: false
-  nexora.command.help:
-    description: Access to the /nxanti help command
+
+  bayon.command.help:
+    description: Access to /byac help
     default: op
-  nexora.command.reload:
-    description: Access to the /nxanti reload command
+
+  bayon.command.reload:
+    description: Access to /byac reload
     default: op
-  nexora.command.info:
+
+  bayon.command.info:
     description: View detailed anti-cheat telemetry and VL info for a player
     default: op
-  nexora.command.history:
+
+  bayon.command.history:
     description: View logged violation history for a player
     default: op
-  nexora.command.reset:
+
+  bayon.command.reset:
     description: Reset violation levels for a player
     default: op
-  nexora.command.punish:
+
+  bayon.command.punish:
     description: Manually execute punishments on a player
     default: op
-  nexora.command.exempt:
+
+  bayon.command.exempt:
     description: Temporarily exempt a player from anti-cheat checks
     default: op
+
+  bayon.command.gui:
+    description: Open the interactive staff anti-cheat GUI (/byac gui)
+    default: op
+
+  bayon.command.debug:
+    description: Toggle or view debug information for specific checks
+    default: op
+
+  bayon.command.scan:
+    description: Scan a player for illegal PvP modifications (/byac scan <player>)
+    default: op
+
+  # Legacy aliases for backwards compatibility
+  nexora.admin:
+    description: Legacy alias for bayon.admin
+    default: op
+    children:
+      bayon.admin: true
+  nexora.alerts:
+    default: op
+  nexora.bypass:
+    default: false
+  nexora.command.help:
+    default: op
+  nexora.command.reload:
+    default: op
+  nexora.command.info:
+    default: op
+  nexora.command.history:
+    default: op
+  nexora.command.reset:
+    default: op
+  nexora.command.punish:
+    default: op
+  nexora.command.exempt:
+    default: op
   nexora.command.gui:
-    description: Open the interactive staff anti-cheat GUI
     default: op
   nexora.command.debug:
-    description: Toggle or view debug information for specific checks
     default: op

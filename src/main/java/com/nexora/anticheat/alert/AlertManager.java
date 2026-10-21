@@ -79,11 +79,11 @@ public class AlertManager {
                 .hoverEvent(HoverEvent.showText(hoverComponent))
                 .clickEvent(ClickEvent.runCommand("/tp " + player.getName()));
 
-        String permission = config.getString("alerts.permission", "nexora.alerts");
+        String permission = config.getString("alerts.permission", "bayon.alerts");
 
         // Broadcast to permitted online staff members
         for (Player onlineStaff : Bukkit.getOnlinePlayers()) {
-            if (onlineStaff.hasPermission(permission)) {
+            if (onlineStaff.hasPermission(permission) || onlineStaff.hasPermission("nexora.alerts")) {
                 PlayerData staffData = plugin.getPlayerDataManager().getData(onlineStaff);
                 if (staffData == null || staffData.areAlertsEnabled()) {
                     onlineStaff.sendMessage(fullAlert);

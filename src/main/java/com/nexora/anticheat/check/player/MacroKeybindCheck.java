@@ -4,6 +4,9 @@ import com.nexora.anticheat.NexoraPlugin;
 import com.nexora.anticheat.check.Check;
 import com.nexora.anticheat.check.CheckCategory;
 import com.nexora.anticheat.data.PlayerData;
+import com.nexora.anticheat.util.TaskUtil;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -12,30 +15,43 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRegisterChannelEvent;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Detects and blocks macro and multi-keybind modifications (MultiKeybinds, Macro Keybind, Fast-Swap).
+ * Detects and blocks macro modifications, MultiKeybinds, and unauthorized PvP client mods.
  *
- * <p>Prevents clients from executing multiple simultaneous physical interactions (e.g. attacking,
- * block placing, and item consuming in 0 ms) or spamming hotbar slot changes at inhuman speeds.
+ * <p>Features:
+ * <ul>
+ *   <li><b>PVP Mod Scanner</b>: Scans handshake plugin channels and client packets for blacklisted
+ *       PvP mods (MultiKeybinds, Freecam, AutoTotem, Minimap Radars, Tweakeroo, Baritone, Printer).</li>
+ *   <li><b>Simultaneous Action Blocker</b>: Intercepts and cancels multi-action bursts occurring in
+ *       the exact same millisecond or game tick (< 15 ms).</li>
+ *   <li><b>Fast Hotbar Swap Blocker</b>: Prevents automated slot cycling (> 4 swaps in < 100 ms).</li>
+ * </ul>
  */
 public class MacroKeybindCheck extends Check {
 
     private int maxActionsPerTick = 2;
     private int maxSlotSwapsPerWindow = 4;
     private long slotWindowMs = 100L;
+    private boolean scanBannedMods = true;
 
-    private static final Set<String> MACRO_CHANNELS = Set.of(
+    private List<String> bannedPvpMods = new ArrayList<>(List.of(
             "multikeybinds", "multikeybind", "macrokeybind", "macros",
-            "macros:execute", "tweakeroo", "tweakeroo:client"
-    );
+            "autoclicker", "autototem", "fastswap", "totem",
+            "freecam", "mcfreecam", "itemscroller", "tweakeroo",
+            "schematica", "litematica", "baritone", "betterpvp",
+            "voxelmap", "xaerominimap", "xaeroworldmap", "journeymap",
+            "minihud", "mousetweaks", "rebind"
+    ));
 
     public MacroKeybindCheck(@NotNull NexoraPlugin plugin) {
-        super(plugin, "MultiKeybinds", "MultiKeybinds (Macro Exploit)", CheckCategory.PLAYER);
+        super(plugin, "MultiKeybinds", "MultiKeybinds (PVP Mod Scanner & Macro)", CheckCategory.PLAYER);
     }
 
     @Override
@@ -43,6 +59,12 @@ public class MacroKeybindCheck extends Check {
         this.maxActionsPerTick = config.getInt(path + ".max-actions-per-tick", 2);
         this.maxSlotSwapsPerWindow = config.getInt(path + ".max-slot-swaps-per-window", 4);
         this.slotWindowMs = config.getLong(path + ".slot-window-ms", 100L);
+        this.scanBannedMods = config.getBoolean(path + ".scan-banned-mods", true);
+
+        List<String> list = config.getStringList(path + ".banned-pvp-mods");
+        if (list != null && !list.isEmpty()) {
+            this.bannedPvpMods = new ArrayList<>(list);
+        }
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -53,7 +75,6 @@ public class MacroKeybindCheck extends Check {
             return;
         }
 
-        // Only track meaningful block/item interactions (not physical pressure plate walks)
         if (event.getAction() == Action.PHYSICAL) {
             return;
         }
@@ -92,7 +113,6 @@ public class MacroKeybindCheck extends Check {
         long now = System.currentTimeMillis();
         long diff = now - data.getLastActionTimestamp();
 
-        // Impossible human latency: attacking an entity at the exact same millisecond as another action
         if (diff < 15L) {
             int count = data.getActionsThisTick() + 1;
             data.setActionsThisTick(count);
@@ -139,6 +159,8 @@ public class MacroKeybindCheck extends Check {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onChannelRegister(PlayerRegisterChannelEvent event) {
+        if (!scanBannedMods) return;
+
         Player player = event.getPlayer();
         PlayerData data = plugin.getPlayerDataManager().getData(player);
         if (data == null || shouldSkip(player, data)) {
@@ -146,8 +168,57 @@ public class MacroKeybindCheck extends Check {
         }
 
         String channel = event.getChannel().toLowerCase();
-        if (MACRO_CHANNELS.contains(channel) || channel.contains("multikeybind") || channel.contains("macrokeybind")) {
-            flag(player, data, "Registered illegal macro keybind channel: " + channel, getMaxVl());
+        inspectAndBlockModChannel(player, data, channel);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent event) {
+        if (!scanBannedMods) return;
+
+        Player player = event.getPlayer();
+        PlayerData data = plugin.getPlayerDataManager().getData(player);
+        if (data == null || shouldSkip(player, data)) {
+            return;
         }
+
+        // Schedule delayed scan of listening plugin channels after initial handshakes settle
+        TaskUtil.runEntityLater(plugin, player, () -> {
+            if (!player.isOnline()) return;
+
+            for (String ch : player.getListeningPluginChannels()) {
+                inspectAndBlockModChannel(player, data, ch.toLowerCase());
+            }
+        }, 15L);
+    }
+
+    /**
+     * Scans and intercepts unauthorized PvP mod channels.
+     */
+    public boolean inspectAndBlockModChannel(@NotNull Player player, @NotNull PlayerData data, @NotNull String channel) {
+        for (String bannedMod : bannedPvpMods) {
+            String lowerBanned = bannedMod.toLowerCase();
+            if (channel.contains(lowerBanned)) {
+                data.addDetectedBannedMod(bannedMod);
+
+                String alertMsg = String.format(
+                        "<#FF0000>[Bayon AntiCheat]</#FF0000> <red><yellow>%s</yellow> connected with illegal PvP mod: <yellow>%s</yellow> <dark_gray>(%s)</dark_gray></red>",
+                        player.getName(), bannedMod, channel
+                );
+
+                for (Player staff : Bukkit.getOnlinePlayers()) {
+                    if (staff.hasPermission("bayon.alerts") || staff.hasPermission("nexora.alerts")) {
+                        staff.sendMessage(MiniMessage.miniMessage().deserialize(alertMsg));
+                    }
+                }
+
+                flag(player, data, String.format("Illegal PvP Mod detected: %s (Channel: %s)", bannedMod, channel), getMaxVl());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<String> getBannedPvpMods() {
+        return bannedPvpMods;
     }
 }

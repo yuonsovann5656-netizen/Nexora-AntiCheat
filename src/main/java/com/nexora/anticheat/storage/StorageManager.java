@@ -44,7 +44,7 @@ public class StorageManager {
 
                 this.database = new MySQLStorage(host, port, databaseName, user, pass, poolSize);
             } else {
-                File dbFile = new File(plugin.getDataFolder(), config.getString("storage.sqlite.file-name", "nexora_violations.db"));
+                File dbFile = new File(plugin.getDataFolder(), config.getString("storage.sqlite.file-name", "bayon_violations.db"));
                 this.database = new SQLiteStorage(dbFile);
             }
             this.database.init();
@@ -52,7 +52,7 @@ public class StorageManager {
         } catch (Exception ex) {
             plugin.getLogger().log(Level.SEVERE, "Failed to initialize database storage, falling back to SQLite: " + ex.getMessage(), ex);
             try {
-                this.database = new SQLiteStorage(new File(plugin.getDataFolder(), "nexora_violations.db"));
+                this.database = new SQLiteStorage(new File(plugin.getDataFolder(), "bayon_violations.db"));
                 this.database.init();
             } catch (Exception fallbackEx) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to initialize fallback SQLite storage!", fallbackEx);

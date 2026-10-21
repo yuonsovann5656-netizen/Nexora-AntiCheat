@@ -1,5 +1,5 @@
 # ==========================================================
-#              NEXORA ANTICHEAT - CORE CONFIG
+#              BAYON ANTICHEAT - CORE CONFIG
 # ==========================================================
 
 settings:
@@ -97,7 +97,7 @@ storage:
   # Supported types: SQLITE (zero-config local DB) or MYSQL (remote database via HikariCP)
   type: "SQLITE"
   sqlite:
-    file-name: "nexora_violations.db"
+    file-name: "bayon_violations.db"
   mysql:
     host: "localhost"
     port: 3306

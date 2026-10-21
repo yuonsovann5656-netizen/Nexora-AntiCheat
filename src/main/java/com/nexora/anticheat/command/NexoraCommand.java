@@ -31,17 +31,24 @@ public class NexoraCommand {
     }
 
     public void register(@NotNull Commands commands) {
-        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("nxanti")
-                .requires(source -> source.getSender().hasPermission("nexora.command.help")
-                        || source.getSender().hasPermission("nexora.admin"))
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("byac")
+                .requires(source -> source.getSender().hasPermission("bayon.command.help")
+                        || source.getSender().hasPermission("bayon.admin")
+                        || source.getSender().hasPermission("nexora.command.help")
+                        || source.getSender().hasPermission("nexora.admin")
+                        || source.getSender().isOp())
                 .executes(ctx -> {
                     sendHelp(ctx.getSource().getSender());
                     return 1;
                 });
 
-        // /nxanti help
+        // /byac help
         root.then(Commands.literal("help")
-                .requires(source -> source.getSender().hasPermission("nexora.command.help"))
+                .requires(source -> source.getSender().hasPermission("bayon.command.help")
+                        || source.getSender().hasPermission("bayon.admin")
+                        || source.getSender().hasPermission("nexora.command.help")
+                        || source.getSender().hasPermission("nexora.admin")
+                        || source.getSender().isOp())
                 .executes(ctx -> {
                     sendHelp(ctx.getSource().getSender());
                     return 1;
@@ -402,25 +409,82 @@ public class NexoraCommand {
                             return 1;
                         })));
 
-        // Register main command with aliases /bayon, /byon, /ac, /bac, /bayonanti, /nexora and /nxac
-        commands.register(root.build(), "Bayon AntiCheat main administration command", List.of("bayon", "byon", "ac", "bac", "bayonanti", "nexora", "nxac"));
+        // /byac scan <player>
+        root.then(Commands.literal("scan")
+                .requires(source -> source.getSender().hasPermission("bayon.command.scan")
+                        || source.getSender().hasPermission("bayon.admin")
+                        || source.getSender().hasPermission("nexora.admin")
+                        || source.getSender().isOp())
+                .then(Commands.argument("player", StringArgumentType.word())
+                        .suggests((ctx, builder) -> {
+                            for (Player p : Bukkit.getOnlinePlayers()) {
+                                builder.suggest(p.getName());
+                            }
+                            return builder.buildFuture();
+                        })
+                        .executes(ctx -> {
+                            CommandSender sender = ctx.getSource().getSender();
+                            String targetName = StringArgumentType.getString(ctx, "player");
+                            Player target = Bukkit.getPlayerExact(targetName);
+                            if (target == null) {
+                                sender.sendMessage(MiniMessage.miniMessage().deserialize("<#FF0000>[Bayon]</#FF0000> <red>Player not found online: " + targetName + "</red>"));
+                                return 0;
+                            }
+                            sendPlayerScan(sender, target);
+                            return 1;
+                        })));
+
+        // Register main command /byac with aliases /bayon, /byon, /ac, /bac, /bayonac, /nxanti, /nexora and /nxac
+        commands.register(root.build(), "Bayon AntiCheat main administration command", List.of("byac", "bayon", "byon", "ac", "bac", "bayonac", "nxanti", "nexora", "nxac"));
+    }
+
+    private void sendPlayerScan(CommandSender sender, Player target) {
+        PlayerData data = plugin.getPlayerDataManager().getData(target);
+        if (data == null) return;
+        MiniMessage mm = MiniMessage.miniMessage();
+        sender.sendMessage(mm.deserialize("<#FF0000>━━━━━━━━━━━━━ <bold>Bayon PVP Mod Scanner: " + target.getName() + "</bold> ━━━━━━━━━━━━━</#FF0000>"));
+        sender.sendMessage(mm.deserialize("<gray>Client Brand:</gray> <aqua>" + data.getClientBrand() + "</aqua>"));
+        sender.sendMessage(mm.deserialize("<gray>Detected Loader / Client:</gray> <yellow>" + data.getDetailedClientType() + "</yellow>"));
+
+        java.util.Set<String> channels = data.getRegisteredChannels();
+        sender.sendMessage(mm.deserialize("<gray>Registered Plugin Channels (" + channels.size() + "):</gray>"));
+        if (channels.isEmpty()) {
+            sender.sendMessage(mm.deserialize("  <dark_gray>•</dark_gray> <gray>Standard Vanilla Handshake</gray>"));
+        } else {
+            for (String ch : channels) {
+                sender.sendMessage(mm.deserialize("  <dark_gray>•</dark_gray> <white>" + ch + "</white>"));
+            }
+        }
+
+        java.util.Set<String> bannedMods = data.getDetectedBannedMods();
+        sender.sendMessage(mm.deserialize("<gray>PVP Mod Status:</gray>"));
+        if (!bannedMods.isEmpty()) {
+            sender.sendMessage(mm.deserialize("  <dark_red><bold>❌ BANNED PVP MODS DETECTED:</bold></dark_red>"));
+            for (String mod : bannedMods) {
+                sender.sendMessage(mm.deserialize("    <red>• " + mod + " (Forbidden on this PvP server)</red>"));
+            }
+        } else {
+            sender.sendMessage(mm.deserialize("  <green>✓ All active mods verified clean for PvP.</green>"));
+        }
+        sender.sendMessage(mm.deserialize("<#FF0000>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF0000>"));
     }
 
     private void sendHelp(CommandSender sender) {
         MiniMessage mm = MiniMessage.miniMessage();
         sender.sendMessage(mm.deserialize("<#FF0000>━━━━━━━━━━━━━ <bold>Bayon AntiCheat Help</bold> ━━━━━━━━━━━━━</#FF0000>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon help</red> <dark_gray>-</dark_gray> <gray>Displays this command overview</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon reload</red> <dark_gray>-</dark_gray> <gray>Reloads configuration, messages & checks</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon alerts [on|off]</red> <dark_gray>-</dark_gray> <gray>Toggles staff violation notifications</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon info <player></red> <dark_gray>-</dark_gray> <gray>View player telemetry and violation stats</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon history <player></red> <dark_gray>-</dark_gray> <gray>View logged violations history</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon reset <player></red> <dark_gray>-</dark_gray> <gray>Clears active violation levels for player</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon punish <player> <reason></red> <dark_gray>-</dark_gray> <gray>Manually punish player</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon exempt <player> [duration]</red> <dark_gray>-</dark_gray> <gray>Temporarily exempt player</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon unban <player|ip></red> <dark_gray>-</dark_gray> <gray>Pardon a banned player or IP address</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon bans <player></red> <dark_gray>-</dark_gray> <gray>View ban records and escalation history</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon gui</red> <dark_gray>-</dark_gray> <gray>Open interactive staff overview GUI</gray>"));
-        sender.sendMessage(mm.deserialize(" <red>/bayon debug <check></red> <dark_gray>-</dark_gray> <gray>Toggle check debugging</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac help</red> <dark_gray>-</dark_gray> <gray>Displays this command overview</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac gui</red> <dark_gray>-</dark_gray> <gray>Open interactive staff overview GUI</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac scan <player></red> <dark_gray>-</dark_gray> <gray>Scan player for forbidden PvP mods</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac reload</red> <dark_gray>-</dark_gray> <gray>Reloads configuration, messages & checks</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac alerts [on|off]</red> <dark_gray>-</dark_gray> <gray>Toggles staff violation notifications</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac info <player></red> <dark_gray>-</dark_gray> <gray>View player telemetry and violation stats</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac history <player></red> <dark_gray>-</dark_gray> <gray>View logged violations history</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac reset <player></red> <dark_gray>-</dark_gray> <gray>Clears active violation levels for player</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac punish <player> <reason></red> <dark_gray>-</dark_gray> <gray>Manually punish player</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac exempt <player> [duration]</red> <dark_gray>-</dark_gray> <gray>Temporarily exempt player</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac unban <player|ip></red> <dark_gray>-</dark_gray> <gray>Pardon a banned player or IP address</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac bans <player></red> <dark_gray>-</dark_gray> <gray>View ban records and escalation history</gray>"));
+        sender.sendMessage(mm.deserialize(" <red>/byac debug <check></red> <dark_gray>-</dark_gray> <gray>Toggle check debugging</gray>"));
         sender.sendMessage(mm.deserialize("<#FF0000>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF0000>"));
     }
 
